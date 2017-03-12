@@ -174,7 +174,8 @@ int main(void)
 	while (1)
 	{
 		/* USER CODE END WHILE */
-		votingArray();
+//		votingArray();
+		printStringToConsole("HHHHHHHHHHHHHH");
 		HAL_Delay(500);
 		/* USER CODE BEGIN 3 */
 	}
@@ -386,9 +387,12 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void STM_BOARD_Init(void){
+	//Message to send
+	char message[BUFFER_SIZE] = "WASSUPSTM";
+
 	//Initialize test data
 	for (int i = 0; i < BUFFER_SIZE; i++) {
-		test_Data[i]= 'E';
+		test_Data[i]= (uint8_t)message[i];
 	}
 	//Declare letter to identify boards for output messages.
 	STM_A.letter = 'A';
@@ -423,8 +427,8 @@ void votingArray(void){
 			printBufferToConsole(STM_B.data);
 			printStringToConsole("\n");
 		}else{
+			printStringToConsole("Error reading buffer B.\n");
 		}
-		printStringToConsole("Error 3");
 
 		if(readBoard(STM_C.huart, STM_C.data)){
 			printStringToConsole("Got Data from C: ");
@@ -443,7 +447,7 @@ void votingArray(void){
 			ac=TRUE;
 		}
 
-		//send reset if discrepency in data comparison.
+		//send reset if discrepancy in data comparison.
 		if(ab==FALSE){
 			setPinHigh(STM_B.PinPort, STM_B.Reset_Pin);
 		}
@@ -453,7 +457,7 @@ void votingArray(void){
 
 		//If there is a difference between the data received in any STMs, then a reset was triggered.
 		//We must wait for the other STMs to reset.
-		if (ab || ac) {
+		if (ab==FALSE || ac==FALSE) {
 			HAL_Delay(RESET_TIME); //Give time for the STMs to reset
 		}
 
@@ -535,7 +539,7 @@ void printBufferToConsole(uint8_t *pData){
 void setPinHigh(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin){
 	HAL_GPIO_WritePin(GPIOx, GPIO_Pin, GPIO_PIN_SET);
 	char output[25];
-	sprintf(output, "Driving pin to high: %d\n", GPIO_Pin);
+	sprintf(output, "Driving pin to high: %u\n", GPIO_Pin);
 	printStringToConsole(output);
 }
 
@@ -545,7 +549,7 @@ void setPinHigh(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin){
 void setPinLow(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin){
 	HAL_GPIO_WritePin(GPIOx, GPIO_Pin, GPIO_PIN_RESET);
 	char output[25];
-	sprintf(output, "Driving pin to low: %d\n", GPIO_Pin);
+	sprintf(output, "Driving pin to low: %u\n", GPIO_Pin);
 	printStringToConsole(output);
 }
 
@@ -555,7 +559,6 @@ void setPinLow(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin){
 int compare(uint8_t *bufferIn, char compare_cluster){
 	int out=TRUE;
 	for (int i = 0; i < BUFFER_SIZE; i++) {
-		STM_A.data[i]='a';
 		if (STM_A.data[i] != bufferIn[i]){
 			out = FALSE;
 		}
@@ -601,8 +604,11 @@ int readBoard(UART_HandleTypeDef *huart, uint8_t *buffer) {
 //			}
 //		}
 //	}
-	HAL_UART_Receive(huart, buffer, BUFFER_SIZE, timeOut);
-	return TRUE;
+	if(HAL_UART_Receive(huart, buffer, BUFFER_SIZE, timeOut)==HAL_OK){
+		return TRUE;
+	}else{
+		return FALSE;
+	}
 }
 
 //clearArray(): This function writes null bytes to the buffer array passed to it
