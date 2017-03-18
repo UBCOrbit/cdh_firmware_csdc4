@@ -50,9 +50,28 @@
  * Original Author: Divya Budihal, Ro-ee Tal
  * Date Created: 11/02/2017
  *
- *Modifying Author: Ro-ee Tal
- *Date Modified: 18/02/2017
- *Description: Adjusted code to adhere to UBC Orbit coding Standard. Also cleaned up some methods and adjusted them accordingly.
+ *	Modifying Author: Ro-ee Tal
+ *	Date Modified: 18/02/2017
+ *	Description: Adjusted code to adhere to UBC Orbit coding Standard. Also cleaned up some methods and adjusted them accordingly.
+ */
+
+/*
+ * Connecting STM 1:
+ * -huart1 to STM2 (it's B)
+ * -huart6 to STM3 (it's c)
+ *
+ *  Connecting STM 2:
+ * -huart1 to STM3 (it's B)
+ * -huart6 to STM1 (it's c)
+ *
+ *  Connecting STM 3:
+ * -huart1 to STM1 (it's B)
+ * -huart6 to STM2 (it's c)
+ *
+ * D2 and D0 - huart2 is designated for receiving signals from source.
+ *
+ * GPIOB 4 (D5) - Send signal to reset it's B
+ * GPIOB 10 (D6) - Send signal to reset it's C
  */
 
 
@@ -95,9 +114,6 @@ UART_HandleTypeDef huart6;
 #define WAIT_TIME 50
 #define RESET_TIME 500
 #define timeOut 0xFFFF
-
-//data buffer for testing
-uint8_t test_Data[BUFFER_SIZE];
 
 //Structure declaring board settings, which may vary depending on the board. Determined using STM_ID
 struct board{
@@ -174,8 +190,7 @@ int main(void)
 	while (1)
 	{
 		/* USER CODE END WHILE */
-//		votingArray();
-		printStringToConsole("HHHHHHHHHHHHHH");
+		votingArray();
 		HAL_Delay(500);
 		/* USER CODE BEGIN 3 */
 	}
@@ -387,13 +402,6 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void STM_BOARD_Init(void){
-	//Message to send
-	char message[BUFFER_SIZE] = "WASSUPSTM";
-
-	//Initialize test data
-	for (int i = 0; i < BUFFER_SIZE; i++) {
-		test_Data[i]= (uint8_t)message[i];
-	}
 	//Declare letter to identify boards for output messages.
 	STM_A.letter = 'A';
 	STM_B.letter = 'B';
@@ -464,7 +472,6 @@ void votingArray(void){
 		//Drive reset pins back low
 		setPinLow(STM_B.PinPort, STM_B.Reset_Pin);
 		setPinLow(STM_C.PinPort, STM_C.Reset_Pin);
-
 	}
 
 }
@@ -476,37 +483,33 @@ void votingArray(void){
 int getSignalData(void) {
 	HAL_Delay(WAIT_TIME);
 	clearArray(STM_A.data);
-	int status=FALSE;
-	//	uint8_t tempBuffer[BUFFER_SIZE];
-	//	int looper=2;
-	//	//check if receiving serial communication
-	//	while(HAL_UART_Receive(STM_B.huart,tempBuffer,BUFFER_SIZE,timeOut)==HAL_OK||HAL_UART_Receive(STM_C.huart,tempBuffer,BUFFER_SIZE,timeOut)==HAL_OK){
-	//		//check that first to letters have the defined checks
-	//		if(tempBuffer[0] == CHAR1 && tempBuffer[1] == CHAR2) {
-	//			//add each character after the checks to the local buffer.
-	//			while(tempBuffer[looper]!=SECOND_CHAR&&tempBuffer[looper+1]!=END_CHAR&&looper<BUFFER_SIZE-2){
-	//				STM_A.data[looper-2]=tempBuffer[looper];
-	//				looper++;
-	//				//if the end checks are in the receved data, then the data buffer is acceptable: status TRUE
-	//				if(tempBuffer[looper+1]==SECOND_CHAR&&tempBuffer[looper+2]==END_CHAR){
-	//					status = TRUE;
-	//				}
-	//			}
-	//			if(status==TRUE){
-	//				printStringToConsole("Got Data from main: ");
-	//				printBufferToConsole(STM_A.data);
-	//				printStringToConsole("\n");
-	//			}
-	//		}
-	//	}
-	for (int i = 0; i < BUFFER_SIZE; i++) {
-		STM_A.data[i]= test_Data[i];
+	uint8_t tempBuffer[BUFFER_SIZE];
+	int endCheck = FALSE;
+	//check if receiving serial communication
+	if(HAL_UART_Receive(STM_A.huart,tempBuffer,BUFFER_SIZE,timeOut)==HAL_OK){
+		//check that first two letters have the defined checks
+		if(tempBuffer[0]==CHAR1&&tempBuffer[1]==CHAR2){
+			//Start saving the useful data, not the check chars
+			int count=2;
+			while(count<BUFFER_SIZE-2){
+				STM_A.data[count] = tempBuffer[count];
+				//Check for the last two check chars
+				if(tempBuffer[count+1]==SECOND_CHAR&&tempBuffer[count+2]==END_CHAR){
+					endCheck = TRUE;
+					break;
+				}
+				count++;
+			}
+		}
+		if(endCheck==TRUE){
+			printStringToConsole("Got Data from main: ");
+			printBufferToConsole(STM_A.data);
+			printStringToConsole("\n");
+		}else{
+			printStringToConsole("Error receiving data from source!");
+		}
 	}
-	printStringToConsole("Got Data from main: ");
-	printBufferToConsole(STM_A.data);
-	printStringToConsole("\n");
-	status=TRUE;
-	return status;
+	return endCheck;
 }
 
 //writeOthers(): Sends the data in buffer to other boards.
@@ -585,25 +588,6 @@ void printCompare(char compare_cluster, int comparison){
 //Input: The serial communication channel and the buffer to be saved to.
 //Output: Boolean value - True: Successfully read to buffer.
 int readBoard(UART_HandleTypeDef *huart, uint8_t *buffer) {
-//	int out=FALSE;
-//	int looper=0;
-	clearArray(buffer);
-//	uint8_t temp[BUFFER_SIZE];
-//	if(HAL_UART_Receive(huart, temp, BUFFER_SIZE, timeOut)==HAL_OK) {
-//		if (temp[0] == CHAR1 && temp[1] == CHAR2) {
-//			//loops through each character until it reaches the end checks or the end of the buffer
-//			//writes each character to the buffer
-//			while(looper<BUFFER_SIZE||(temp[looper-1]!=SECOND_CHAR&&temp[looper]!=END_CHAR)){
-//				buffer[looper]=temp[looper];
-//				looper++;
-//			}
-//			//if there were the check chars at the beginning and end, then it read valid data and returns true
-//			if((temp[looper-1]==SECOND_CHAR&&temp[looper]==END_CHAR)){
-//				out = TRUE;
-//				buffer[looper]=temp[looper];
-//			}
-//		}
-//	}
 	if(HAL_UART_Receive(huart, buffer, BUFFER_SIZE, timeOut)==HAL_OK){
 		return TRUE;
 	}else{
