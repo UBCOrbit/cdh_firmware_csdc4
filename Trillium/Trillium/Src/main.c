@@ -190,8 +190,9 @@ int main(void)
 	while (1)
 	{
 		/* USER CODE END WHILE */
-		votingArray();
-		HAL_Delay(500);
+		//		votingArray();
+		int i = getSignalData();
+		HAL_Delay(50);
 		/* USER CODE BEGIN 3 */
 	}
 	/* USER CODE END 3 */
@@ -485,20 +486,34 @@ int getSignalData(void) {
 	clearArray(STM_A.data);
 	uint8_t tempBuffer[BUFFER_SIZE];
 	int endCheck = FALSE;
+	int startCheck=FALSE;
+	int count=0;
+	int start_i = 0;
 	//check if receiving serial communication
 	if(HAL_UART_Receive(STM_A.huart,tempBuffer,BUFFER_SIZE,timeOut)==HAL_OK){
-		//check that first two letters have the defined checks
-		if(tempBuffer[0]==CHAR1&&tempBuffer[1]==CHAR2){
-			//Start saving the useful data, not the check chars
-			int count=2;
-			while(count<BUFFER_SIZE-2){
-				STM_A.data[count] = tempBuffer[count];
-				//Check for the last two check chars
-				if(tempBuffer[count+1]==SECOND_CHAR&&tempBuffer[count+2]==END_CHAR){
-					endCheck = TRUE;
-					break;
+		printStringToConsole("Receiving\n");
+		printBufferToConsole(tempBuffer);
+		while(count<BUFFER_SIZE-3 && startCheck != TRUE){
+			if(tempBuffer[count]== CHAR1 && tempBuffer[count+1] == CHAR2){
+				startCheck = TRUE;
+				start_i = count+2;
+			}
+			count++;
+		}
+
+		if (startCheck){
+			while (start_i < BUFFER_SIZE-1 && endCheck != TRUE){
+
+				if (tempBuffer[start_i] == SECOND_CHAR && tempBuffer[start_i+1]== END_CHAR)
+				{
+					endCheck == TRUE;
 				}
-				count++;
+				else
+				{
+					STM_A.data[start_i] = tempBuffer[start_i];
+				}
+
+				start_i++;
 			}
 		}
 		if(endCheck==TRUE){
