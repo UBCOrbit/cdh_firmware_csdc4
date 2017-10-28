@@ -85,7 +85,6 @@
 #include "main.h"
 #include "stm32f4xx_hal.h"
 #include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
 
 /* Private variables ---------------------------------------------------------*/
@@ -159,151 +158,6 @@ void printCompare(char compare_cluster, int comparison);
 int getSignalData(char id, int baseIndex, int numBytes);
 /* USER CODE END PFP */
 
-// Compare data to B. Send result to C.
-// Input: base index of memory, number of bytes to be compared
-// Side-Effects: Request data from B. Receieve and store B's data in virtual stm board (stm_B). Send result to C. Get power cycled.
-// Output: none
-// Assumptions: -Upon booting, A copies its data from C.
-//				-A, B, and C have the exact same data[] array
-void compareData(int baseIndex, int numBytes){
-	// Format of string from A->B, XX--address--YY--size--ZZ
-	// Format of string from B->A, XX--data--ZZ
-	// Format of string from C->A, XX--data-ZZ
-
-	printStringToConsole("Comparison begun.\n");
-	// Form string
-	char addressString[8];
-	itoa(baseIndex, addressString, 10);
-	char sizeString[8];
-	itoa(numBytes, sizeString, 10);
-	char fullString[16];
-	// fullString = "XX";
-
-	// Append address
-	strcat(fullString, addressString);
-	//strcat(fullString,"YY");
-
-	// Append numBytes
-	strcat(fullString,sizeString);
-	//strcat(fullString,"ZZ");
-
-	// Send data to B
-	printStringToConsole("Index:");
-	printStringToConsole(addressString);
-	printStringToConsole("\n");
-
-	printStringToConsole("Size:");
-	printStringToConsole(sizeString);
-	printStringToConsole("\n");
-
-	printStringToConsole("Full string is:");
-	printStringToConsole(fullString);
-	printStringToConsole("\n");
-	HAL_UART_Transmit(&huart1, fullString, sizeof(fullString), timeOut);
-	free(fullString);
-
-	// Receive data from B
-	int received = 0;
-	while(!received){
-		received = getSignalData('B', baseIndex, numBytes);
-		printStringToConsole("Waiting for B data..\n");
-		HAL_Delay(timeOut);
-	}
-
-	printStringToConsole("Received B data\n");
-	// Compare data
-	int i = 0;
-	int comp_result = 1;
-	for(i=0; i<numBytes; i++){
-		if(STM_A.data[baseIndex + i] != STM_B.data[baseIndex + i])
-			comp_result = 0;
-	}
-
-	// Format result string
-	char *result;
-	itoa(comp_result, result, 10);
-
-	/*
-	char* resString = (char*)malloc(sizeof(result));
-	// resString = "XX";
-	strcat(resString, result);
-	// strcat(resString, "ZZ");
-
-	// Send result string to C
-	/*
-	if(HAL_UART_Transmit(&huart2, (uint8_t*)resString, strlen(resString), timeOut) == HAL_OK){
-		//printf("Result successfully sent.\n");
-		printStringToConsole(result);
-	}
-
-	else
-		printf("Result could not be transmitted\n");
-	*/
-
-	/*
-	if(HAL_UART_Transmit(&huart2, (uint8_t*)resString, strlen(resString), timeOut) == HAL_OK){
-		//printf("Result successfully sent.\n");
-		printStringToConsole(result);
-	}
-	*/
-	if(HAL_UART_Transmit(&huart2, (uint8_t*)result, strlen(result), timeOut) == HAL_OK){
-			//printf("Result successfully sent.\n");
-			printStringToConsole("Result sent!");
-	}
-	// Get reset or not
-}
-
-// Receive data from another STM
-// Input: stm id, index to store the data at
-// Side-Effects: Read the UART status register to check if bytes have been received. Try to read numBytes of them.
-// Output: 0 if data is not read successfully. 1 if success.
-int getSignalData(char id, int baseIndex, int numBytes) {
-	//initial variable setup
-	HAL_Delay(WAIT_TIME); // Wait to initialize variables
-	uint8_t tempBuffer[BUFFER_SIZE];
-	clearArray(tempBuffer);
-	/*
-	int endCheck = FALSE;
-	int startCheck = FALSE;
-	*/
-	int count = 1;
-	int stmCount = 0;
-	UART_HandleTypeDef huart;
-
-	printStringToConsole("Getting signal data..\n");
-	char byte_s[8];
-	itoa(numBytes, byte_s, 10);
-	//printStringToConsole(byte_s);
-	// Check if receiving data from B or C
-	if(id == 'B')
-		huart = huart1;
-	else
-		huart = huart2;
-
-	//printStringToConsole("Begin byte storage.\n");
-	// Check status register for numBytes bytes, store them in tempBuffer.
-	// If successfully received specified number of bytes, return HAL_OK
-	// Wait HAL_MAX_DELAY ms before timeOut, then return HAL_TIMEOUT
-	if (HAL_UART_Receive(&huart1, tempBuffer, numBytes, timeOut) == HAL_OK) {
-		// Store address and numbytes
-		printStringToConsole("Inside receive..\n");
-		while (stmCount < numBytes) {
-			STM_B.data[baseIndex + stmCount] = tempBuffer[stmCount];
-			printStringToConsole("One byte stored.\n");
-			stmCount++;
-		}
-	}
-	else {
-		printStringToConsole("Did not receive correct number of bytes.\n");
-		return FALSE;
-	}
-
-	// Append null char
-	STM_B.data[baseIndex + stmCount] = '\0';
-	printStringToConsole("Finished.\n");
-	//if the buffer also had the last two check chars (which means it had to have had the first two), then proceed.
-	return TRUE;
-}
 
 /* USER CODE BEGIN 0 */
 int main(void)
@@ -333,25 +187,19 @@ int main(void)
 
 	//Set Tx pin low at the beginning of loop
 	setPinLow(GPIOA, GPIO_PIN_8);
-
-	// Initialize A's memory here ... ***
-	char *testString = "Hello!\n";
-	int i;
-	for(i=0; i<strlen(testString); i++){
-		STM_A.data[i] = testString[i];
+	char message;
+	uint8_t buffer[BUFFER_SIZE];
+	while(1){
+		if(HAL_UART_Receive(&huart2, buffer, 1, timeOut) == HAL_OK){
+			printStringToConsole("\nMessage received:\n");
+			message = buffer;
+			printStringToConsole(message);
+		}
+		else{
+			char* endMsg = "Nothing received\n";
+			printStringToConsole("Nothing.\n");
+		}
 	}
-	printStringToConsole("STM A Initialized.\n");
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
-	while (1)
-	{
-		/* USER CODE END WHILE */
-		//Run voting array
-		compareData(0, (int)sizeof("Hello!\n"));
-		printStringToConsole("Comparison complete.\n");
-		/* USER CODE BEGIN 3 */
-	}
-	/* USER CODE END 3 */
 
 }
 

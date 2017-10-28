@@ -2,7 +2,8 @@ void setup() {
   //arduino console
   Serial.begin(115200);
   //huart 1
-  Serial1.begin(115200);
+  Serial2.begin(115200);
+  Serial3.begin(115200);
 //  huart 6
   //Serial2.begin(115200);
 
@@ -19,9 +20,17 @@ void setup() {
 }
 
 void loop() {
-  while(Serial1.available()>0){
-    Serial.println(Serial1.readString());
+  
+  while(Serial2.available()>0){
+    Serial.println(Serial2.readString());
   }
+  
+  /*
+  while(Serial3.available()>0){
+    Serial.println(Serial3.readString());
+  }
+  */
+  //Serial.println("Waiting\n");
 }
 
 

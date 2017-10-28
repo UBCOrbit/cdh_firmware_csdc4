@@ -86,14 +86,15 @@
 #include "stm32f4xx_hal.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /* Private variables ---------------------------------------------------------*/
 //Not in use at the moment.
 ADC_HandleTypeDef hadc1;
 
 // Communication Channels
-UART_HandleTypeDef huart1;
-UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart1; // STM_A
+UART_HandleTypeDef huart2; // STM_C (Arduino for testing)
 UART_HandleTypeDef huart6;
 
 /* USER CODE BEGIN PV */
@@ -105,12 +106,14 @@ UART_HandleTypeDef huart6;
 
 //These characters are appended to the beginning and end of each string sent from the host this is just
 //In the below case, this represents the sequence AA0000000000000000YZ
+
 #define INITCHAR1 'X'
 #define INITCHAR2 'X'
 #define MIDCHAR1 'Y'
 #define MIDCHAR2 'Y'
 #define ENDCHAR1 'Z'
 #define ENDCHAR2 'Z'
+
 
 //Each board must have a different ID, and will have certain settings based on that ID.
 //The settings are declared in a switch case in the STM_BOARD_Init
@@ -159,7 +162,7 @@ int getSignalData(char id, int baseIndex, int numBytes);
 
 // Compare data to B. Send result to C.
 // Input: base index of memory, number of bytes to be compared
-// Side-Effects: Request data from B. Receiee and store B's data in virtual stm board (stm_B). Send result to C. Get power cycled.
+// Side-Effects: Request data from B. Receive and store B's data in virtual stm board (stm_B). Send result to C. Get power cycled.
 // Output: none
 // Assumptions: -Upon booting, A copies its data from C.
 //				-A, B, and C have the exact same data[] array
@@ -167,57 +170,33 @@ void compareData(){
 	// Format of string from A->B, XX--address--YY--size--ZZ
 	// Format of string from B->A, XX--data--ZZ
 	// Format of string from C->A, XX--data-ZZ
-	int reqBytes = sizeof(int) + 3*sizeof("XX") + sizeof(int);
+	int reqBytes = 2*sizeof(int);
 	uint8_t tempBuffer[BUFFER_SIZE];
 	int stm_count = 0, count = 1;
-	int initCheck = 0, midCheck = 0, endCheck = 0;
+	//int initCheck = 0, midCheck = 0, endCheck = 0;
 	int baseIndex, numBytes;
-	char* baseIndex_s, numBytes_s;
+	char baseIndex_s[8];
+	char numBytes_s[8];
 
+	printStringToConsole("Comparison begun..\n");
 	// Wait until A sends the request string --------------------------
-	while(HAL_UART_Receive(&huart1, tempBuffer, reqBytes, HAL_MAX_DELAY) != HAL_OK){
+	while(HAL_UART_Receive(&huart1, tempBuffer, reqBytes, timeOut) != HAL_OK){
 		//print("Waiting..\n");
-		//HAL_DELAY(10);
+		printStringToConsole("Waiting for A..\n");
+		HAL_Delay(timeOut);
 	}
+	printStringToConsole("B: Received data from A\n");
+	// Store address
+	strncpy(baseIndex_s, tempBuffer[count], sizeof(int));
+	printStringToConsole("B: Base Address:");
+	printStringToConsole(baseIndex_s);
+	printStringToConsole("\n");
 
-	// Parse request string ---------------------
-	while(count < BUFFER_SIZE && endCheck != TRUE){
-
-		// Look for the initialization identifier
-		if(initCheck == 1){
-
-			// Store address
-			strncpy(baseIndex_s, tempBuffer[count], sizeof(int));
-			count += (sizeof(int) + 1);
-
-			// Look for the mid identifier
-			if(tempBuffer[count-1] == MIDCHAR1 && tempBuffer[count] == MIDCHAR2){
-				count++;
-			}
-			else{
-				printf("Mid characters not found.\n");
-				return;
-			}
-
-			// Store numBytes
-			strncpy(numBytes_s, tempBuffer[count], sizeof(int));
-			count += (sizeof(int) + 1);
-
-			// Look for end identifier
-			if(tempBuffer[count-1] == ENDCHAR1 && tempBuffer[count] == ENDCHAR2){
-				count++;
-			}
-			else{
-				printf("End characters not found.\n");
-				return;
-			}
-		}
-		else{
-			if(tempBuffer[count-1] == INITCHAR1 && tempBuffer[count] == INITCHAR2)
-				initCheck = 1;
-			count++;
-		}
-	}
+	// Store numBytes
+	strncpy(numBytes_s, tempBuffer[count+sizeof(int)], sizeof(int));
+	printStringToConsole("B: Size:");
+	printStringToConsole(numBytes_s);
+	printStringToConsole("\n");
 
 	// Convert from bytes to int
 	baseIndex = atoi(baseIndex_s);
@@ -226,24 +205,25 @@ void compareData(){
 	// Create data array -----------------------
 	// Initialize size and init identifiers
 	uint8_t reqData[numBytes];
-	reqData[0] = 'X';
-	reqData[1] = 'X';
 
 	// Transfer data from internal storage to msg buffer
-	for(count = 2; count < (numBytes + 4); count++){
+	for(count = 0; count < (numBytes); count++){
 		reqData[count] = STM_B.data[baseIndex+count];
 	}
 
 	// Append end identifiers
+	/*
 	reqData[count] = 'Z';
 	reqData[count+1] = 'Z';
+	*/
 
 	// Send data to A ----------------------------
 	if(HAL_UART_Transmit(&huart1, reqData, sizeof(reqData), timeOut) == HAL_OK){
 		//printf("Message sent successfully.\n");
+		printStringToConsole("Sent data to A!\n");
 	}
 	else{
-		//printf("Message could not be sent to A.\n");
+		printStringToConsole("Message could not be sent to A.\n");
 		//return;
 	}
 
@@ -254,6 +234,7 @@ void compareData(){
 // Input: stm id, index to store the data at
 // Side-Effects: Read the UART status register to check if bytes have been received. Try to read numBytes of them.
 // Output: 0 if data is not read successfully. 1 if success.
+/*
 int getSignalData(char id, int baseIndex, int numBytes) {
 	//initial variable setup
 	HAL_Delay(WAIT_TIME);
@@ -317,7 +298,7 @@ int getSignalData(char id, int baseIndex, int numBytes) {
 	}
 	return endCheck;
 }
-
+*/
 /* USER CODE BEGIN 0 */
 int main(void)
 {
@@ -346,20 +327,21 @@ int main(void)
 
 	//Set Tx pin low at the beginning of loop
 	setPinLow(GPIOA, GPIO_PIN_8);
-
+	printStringToConsole("B begin.\n");
 	// Initialize A's memory here ... ***
 	char *testString = "Hello!\n";
 	int i;
 	for(i=0; i<strlen(testString); i++){
 		STM_B.data[i] = testString[i];
 	}
-
+	printStringToConsole("B initialized.\n");
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1)
 	{
 		/* USER CODE END WHILE */
 		//Run voting array
+		printStringToConsole("Comparison begun!\n");
 		compareData();
 		/* USER CODE BEGIN 3 */
 	}
@@ -370,7 +352,7 @@ int main(void)
 /* USER CODE END 0 */
 
 void printStringToConsole(char message[]) {
-	if (HAL_UART_Transmit(&huart6, (uint8_t*)message, strlen(message), timeOut) == HAL_OK) {
+	if (HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut) == HAL_OK) {
 	}
 }
 
