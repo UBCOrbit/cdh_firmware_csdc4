@@ -107,13 +107,14 @@ UART_HandleTypeDef huart6;
 //These characters are appended to the beginning and end of each string sent from the host this is just
 //In the below case, this represents the sequence AA0000000000000000YZ
 
+/*
 #define INITCHAR1 'X'
 #define INITCHAR2 'X'
 #define MIDCHAR1 'Y'
 #define MIDCHAR2 'Y'
 #define ENDCHAR1 'Z'
 #define ENDCHAR2 'Z'
-
+*/
 
 //Each board must have a different ID, and will have certain settings based on that ID.
 //The settings are declared in a switch case in the STM_BOARD_Init
@@ -170,34 +171,43 @@ void compareData(){
 	// Format of string from A->B, XX--address--YY--size--ZZ
 	// Format of string from B->A, XX--data--ZZ
 	// Format of string from C->A, XX--data-ZZ
-	int reqBytes = 2*sizeof(int);
+	int reqBytes = 2;
 	uint8_t tempBuffer[BUFFER_SIZE];
-	int stm_count = 0, count = 1;
+	clearArray(tempBuffer);
+	int stm_count = 0, count = 0;
 	//int initCheck = 0, midCheck = 0, endCheck = 0;
 	int baseIndex, numBytes;
 	char baseIndex_s[8];
 	char numBytes_s[8];
 
-	printStringToConsole("Comparison begun..\n");
+	//printStringToConsole("Comparison begun..\n");
 	// Wait until A sends the request string --------------------------
-	while(HAL_UART_Receive(&huart1, tempBuffer, reqBytes, timeOut) != HAL_OK){
+	// change &huart2 back to &huart1
+	int received = 0;
+	while(received == 0){
 		//print("Waiting..\n");
-		printStringToConsole("Waiting for A..\n");
-		HAL_Delay(timeOut);
+		printStringToConsole("B: Waiting for A..\n");
+		if(HAL_UART_Receive(&huart1, tempBuffer, reqBytes+1, timeOut) == HAL_OK)
+			received = 1;
 	}
+
 	printStringToConsole("B: Received data from A\n");
 	// Store address
-	strncpy(baseIndex_s, tempBuffer[count], sizeof(int));
+	baseIndex_s[0] = tempBuffer[1];
 	printStringToConsole("B: Base Address:");
-	printStringToConsole(baseIndex_s);
+	char temp[2] = "\0";
+	temp[0] = tempBuffer[1];
+	printStringToConsole(temp);
 	printStringToConsole("\n");
 
 	// Store numBytes
-	strncpy(numBytes_s, tempBuffer[count+sizeof(int)], sizeof(int));
+	numBytes_s[0] = tempBuffer[2];
 	printStringToConsole("B: Size:");
-	printStringToConsole(numBytes_s);
+	temp[0] = tempBuffer[2];
+	printStringToConsole(temp);
 	printStringToConsole("\n");
 
+	//printStringToConsole("Converting to integers.\n");
 	// Convert from bytes to int
 	baseIndex = atoi(baseIndex_s);
 	numBytes = atoi(numBytes_s);
@@ -207,8 +217,12 @@ void compareData(){
 	uint8_t reqData[numBytes];
 
 	// Transfer data from internal storage to msg buffer
-	for(count = 0; count < (numBytes); count++){
+	for(count = 0; count < numBytes; count++){
+		//printStringToConsole("Inside loop.\n");
 		reqData[count] = STM_B.data[baseIndex+count];
+		temp[0] = (char)reqData[count];
+		//printStringToConsole("Letter stored.\n");
+		//printStringToConsole(temp);
 	}
 
 	// Append end identifiers
@@ -218,15 +232,14 @@ void compareData(){
 	*/
 
 	// Send data to A ----------------------------
+	printStringToConsole("B:Beginning transmission\n");
 	if(HAL_UART_Transmit(&huart1, reqData, sizeof(reqData), timeOut) == HAL_OK){
-		//printf("Message sent successfully.\n");
-		printStringToConsole("Sent data to A!\n");
+		printStringToConsole("B: Sent data to A!\n");
 	}
 	else{
-		printStringToConsole("Message could not be sent to A.\n");
+		printStringToConsole("B: Message could not be sent to A.\n");
 		//return;
 	}
-
 	// Get reset or not
 }
 
@@ -340,8 +353,8 @@ int main(void)
 	while (1)
 	{
 		/* USER CODE END WHILE */
-		//Run voting array
-		printStringToConsole("Comparison begun!\n");
+		// Run voting array
+		//printStringToConsole("Comparison begun!\n");
 		compareData();
 		/* USER CODE BEGIN 3 */
 	}
