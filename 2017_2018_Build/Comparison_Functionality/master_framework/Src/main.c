@@ -204,10 +204,10 @@ void compareData(int baseIndex, int numBytes){
 
 	// Receive data from B
 	int received = 0;
-	while(!received){
-		received = getSignalData('B', baseIndex, numBytes);
+	while(received == 0){
 		printStringToConsole("A: Waiting for B data..\n");
-		HAL_Delay(WAIT_TIME);
+		if(getSignalData('B', baseIndex, numBytes))
+			received = 1;
 	}
 
 	printStringToConsole("A: Received B data\n");
@@ -259,7 +259,7 @@ void compareData(int baseIndex, int numBytes){
 // Output: 0 if data is not read successfully. 1 if success.
 int getSignalData(char id, int baseIndex, int numBytes) {
 	//initial variable setup
-	HAL_Delay(WAIT_TIME); // Wait to initialize variables
+	// Wait to initialize variables
 	uint8_t tempBuffer[BUFFER_SIZE];
 	clearArray(tempBuffer);
 	/*
@@ -267,7 +267,7 @@ int getSignalData(char id, int baseIndex, int numBytes) {
 	int startCheck = FALSE;
 	*/
 	int count = 1;
-	int stmCount = 1;
+	int stmCount = 0;
 	UART_HandleTypeDef huart;
 
 	// printStringToConsole("A: Getting signal data..\n");
@@ -284,7 +284,7 @@ int getSignalData(char id, int baseIndex, int numBytes) {
 	// If successfully received specified number of bytes, return HAL_OK
 	// Wait HAL_MAX_DELAY ms before timeOut, then return HAL_TIMEOUT
 	// **change back to huart1 for B
-	if (HAL_UART_Receive(&huart1, tempBuffer, numBytes+1, timeOut) == HAL_OK) {
+	if (HAL_UART_Receive(&huart1, tempBuffer, numBytes, timeOut) == HAL_OK) {
 		// Store address and numbytes
 		printStringToConsole("A: Inside receive..\n");
 		while (stmCount <= numBytes + 1) {

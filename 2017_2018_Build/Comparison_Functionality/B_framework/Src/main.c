@@ -192,18 +192,21 @@ void compareData(){
 	}
 
 	printStringToConsole("B: Received data from A\n");
+	printBufferToConsole(tempBuffer);
 	// Store address
-	baseIndex_s[0] = tempBuffer[1];
+	baseIndex_s[0] = tempBuffer[0];
+	baseIndex_s[1] = '\0';
 	printStringToConsole("B: Base Address:");
 	char temp[2] = "\0";
-	temp[0] = tempBuffer[1];
+	temp[0] = tempBuffer[0];
 	printStringToConsole(temp);
 	printStringToConsole("\n");
 
 	// Store numBytes
-	numBytes_s[0] = tempBuffer[2];
+	numBytes_s[0] = tempBuffer[1];
+	numBytes_s[1] = '\0';
 	printStringToConsole("B: Size:");
-	temp[0] = tempBuffer[2];
+	temp[0] = tempBuffer[1];
 	printStringToConsole(temp);
 	printStringToConsole("\n");
 
@@ -221,7 +224,7 @@ void compareData(){
 		//printStringToConsole("Inside loop.\n");
 		reqData[count] = STM_B.data[baseIndex+count];
 		temp[0] = (char)reqData[count];
-		//printStringToConsole("Letter stored.\n");
+		printStringToConsole("Letter stored.\n");
 		//printStringToConsole(temp);
 	}
 
@@ -231,6 +234,7 @@ void compareData(){
 	reqData[count+1] = 'Z';
 	*/
 
+	HAL_Delay(500);
 	// Send data to A ----------------------------
 	printStringToConsole("B:Beginning transmission\n");
 	if(HAL_UART_Transmit(&huart1, reqData, sizeof(reqData), timeOut) == HAL_OK){
@@ -668,7 +672,7 @@ void writeOthers(void){
 //Input: the data buffer to print.
 //Output: None.
 void printBufferToConsole(uint8_t *pData){
-	if(HAL_UART_Transmit(&huart1, pData, BUFFER_SIZE, timeOut)==HAL_OK){
+	if(HAL_UART_Transmit(&huart2, pData, BUFFER_SIZE, timeOut)==HAL_OK){
 	}
 }
 
