@@ -1,6 +1,6 @@
 /**
 ******************************************************************************
-* File Name          : main.c
+* File Name          : main.c --- STM B Code
 * Description        : Main program body
 ******************************************************************************
 *
@@ -46,32 +46,7 @@
 *        simulation functionality
 *        This code is to be run on all three STMs, changing the STM_ID variable
 *        per board (1, 2, 3)
-*
-* Original Author: Divya Budihal, Ro-ee Tal
-* Date Created: 11/02/2017
-*
-*	Modifying Author: Ro-ee Tal
-*	Date Modified: 18/02/2017
-*	Description: Adjusted code to adhere to UBC Orbit coding Standard. Also cleaned up some methods and adjusted them accordingly.
-*
-*	Modifying Author: Ro-ee Tal
-*	Date Modified: 25/02/2017
-*	Description: Finalized methods. Fixed up a few things that would cause logic errors.
-*/
 
-/*
-* Connecting STM 1:
-* -1 to STM2 (it's B)
-* -6 to STM3 (it's c)
-*
-*  Connecting STM 2:
-* -1 to STM3 (it's B)
-* -6 to STM1 (it's c)
-*
-*  Connecting STM 3:
-* -1 to STM1 (it's B)
-* -6 to STM2 (it's c)
-*
 * D1 and D0 - 2 is designated for receiving signals from source.
 *
 * GPIOB 4 (D5) - Send signal to reset it's B
@@ -103,18 +78,6 @@ UART_HandleTypeDef huart6;
 //definition for boolean variables used in conditional statements
 #define TRUE 1
 #define FALSE 0
-
-//These characters are appended to the beginning and end of each string sent from the host this is just
-//In the below case, this represents the sequence AA0000000000000000YZ
-
-/*
-#define INITCHAR1 'X'
-#define INITCHAR2 'X'
-#define MIDCHAR1 'Y'
-#define MIDCHAR2 'Y'
-#define ENDCHAR1 'Z'
-#define ENDCHAR2 'Z'
-*/
 
 //Each board must have a different ID, and will have certain settings based on that ID.
 //The settings are declared in a switch case in the STM_BOARD_Init
@@ -150,91 +113,78 @@ static void MX_USART6_UART_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 void STM_BOARD_Init(void);
 void clearArray(uint8_t *buffer);
-int compare(uint8_t *bufferIn, char compare_cluster);
 void compareData(void);
-int readBoard(UART_HandleTypeDef *, uint8_t *buffer);
 void setPinLow(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 void setPinHigh(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 void printStringToConsole(char message[]);
 void printBufferToConsole(uint8_t *pData);
-void printCompare(char compare_cluster, int comparison);
-int getSignalData(char id, int baseIndex, int numBytes);
 /* USER CODE END PFP */
 
 // Compare data to B. Send result to C.
 // Input: base index of memory, number of bytes to be compared
-// Side-Effects: Request data from B. Receive and store B's data in virtual stm board (stm_B). Send result to C. Get power cycled.
+// Side-Effects: Request data from B. Receive and store B's data in virtual STM board (stm_B). Send result to C. Get power cycled.
 // Output: none
 // Assumptions: -Upon booting, A copies its data from C.
 //				-A, B, and C have the exact same data[] array
 void compareData(){
-	// Format of string from A->B, XX--address--YY--size--ZZ
-	// Format of string from B->A, XX--data--ZZ
-	// Format of string from C->A, XX--data-ZZ
+
 	int reqBytes = 2;
 	uint8_t tempBuffer[BUFFER_SIZE];
 	clearArray(tempBuffer);
-	int stm_count = 0, count = 0;
-	//int initCheck = 0, midCheck = 0, endCheck = 0;
+	int count = 0;
 	int baseIndex, numBytes;
 	char baseIndex_s[8];
 	char numBytes_s[8];
 
-	//printStringToConsole("Comparison begun..\n");
 	// Wait until A sends the request string --------------------------
-	// change &huart2 back to &huart1
 	int received = 0;
 	while(received == 0){
-		//print("Waiting..\n");
 		printStringToConsole("B: Waiting for A..\n");
 		if(HAL_UART_Receive(&huart1, tempBuffer, reqBytes+1, timeOut) == HAL_OK)
 			received = 1;
 	}
 
 	printStringToConsole("B: Received data from A\n");
-	printBufferToConsole(tempBuffer);
-	// Store address
+
+	// Parse data request string ------------------------
 	baseIndex_s[0] = tempBuffer[0];
 	baseIndex_s[1] = '\0';
-	printStringToConsole("B: Base Address:");
 	char temp[2] = "\0";
 	temp[0] = tempBuffer[0];
+	/* Debug Messages */
+	printStringToConsole("B: Base Address:");
 	printStringToConsole(temp);
 	printStringToConsole("\n");
 
 	// Store numBytes
 	numBytes_s[0] = tempBuffer[1];
 	numBytes_s[1] = '\0';
-	printStringToConsole("B: Size:");
 	temp[0] = tempBuffer[1];
+	/* Debug Messages */
+	printStringToConsole("B: Size:");
 	printStringToConsole(temp);
 	printStringToConsole("\n");
 
-	//printStringToConsole("Converting to integers.\n");
 	// Convert from bytes to int
 	baseIndex = atoi(baseIndex_s);
 	numBytes = atoi(numBytes_s);
 
-	// Create data array -----------------------
-	// Initialize size and init identifiers
+	// Generate data array ------------------------
 	uint8_t reqData[numBytes];
 
 	// Transfer data from internal storage to msg buffer
 	for(count = 0; count < numBytes; count++){
-		//printStringToConsole("Inside loop.\n");
 		reqData[count] = STM_B.data[baseIndex+count];
 		temp[0] = (char)reqData[count];
+		/* Debug Messages
 		printStringToConsole("Letter stored.\n");
-		//printStringToConsole(temp);
+		printStringToConsole(temp);
+		*/
 	}
 
-	// Append end identifiers
-	/*
-	reqData[count] = 'Z';
-	reqData[count+1] = 'Z';
-	*/
-
+	// Delay for A to get ready
 	HAL_Delay(500);
+
 	// Send data to A ----------------------------
 	printStringToConsole("B:Beginning transmission\n");
 	if(HAL_UART_Transmit(&huart1, reqData, sizeof(reqData), timeOut) == HAL_OK){
@@ -244,88 +194,17 @@ void compareData(){
 		printStringToConsole("B: Message could not be sent to A.\n");
 		//return;
 	}
-	// Get reset or not
+	// Get reset or not --------------------------
 }
 
-// Receive data from another STM
-// Input: stm id, index to store the data at
-// Side-Effects: Read the UART status register to check if bytes have been received. Try to read numBytes of them.
-// Output: 0 if data is not read successfully. 1 if success.
-/*
-int getSignalData(char id, int baseIndex, int numBytes) {
-	//initial variable setup
-	HAL_Delay(WAIT_TIME);
-	uint8_t tempBuffer[BUFFER_SIZE];
-	clearArray(tempBuffer);
-	int endCheck = FALSE;
-	int startCheck = FALSE;
-	int count = 1;
-	int stmCount = 0;
-	UART_HandleTypeDef huart;
-
-	// Check if receiving data from B or C
-	if(id == 'B')
-		huart = huart1;
-	else
-		huart = huart2;
-
-	// Check status register for numBytes bytes, store them in tempBuffer.
-	// If successfully received specified number of bytes, return HAL_OK
-	// Wait HAL_MAX_DELAY ms before timeOut, then return HAL_TIMEOUT
-	if (HAL_UART_Receive(&huart, tempBuffer, numBytes, HAL_MAX_DELAY) == HAL_OK) {
-
-		//loop through read buffer until maxed out, or end condition is met
-		while (count<BUFFER_SIZE - 1 && endCheck != TRUE) {
-
-			//INITCHAR detection
-			if (tempBuffer[count - 1] == INITCHAR1 && tempBuffer[count] == INITCHAR2) {
-				startCheck = TRUE;
-			}
-			else if (startCheck) {
-				//ENDCHAR detection
-				if (tempBuffer[count] == ENDCHAR1 && tempBuffer[count + 1] == ENDCHAR2) {
-					endCheck = TRUE;
-				}
-
-				else{
-					STM_B.data[baseIndex + stmCount] = tempBuffer[count];
-					stmCount++;
-				}
-			}
-			count++;
-		}
-	}
-	else {
-		printf("Did not receive correct number of bytes.\n");
-		return 0;
-	}
-
-	// Append null char
-	STM_B.data[baseIndex + stmCount] = '\0';
-
-	//if the buffer also had the last two check chars (which means it had to have had the first two), then proceed.
-	if (endCheck == TRUE) {
-		//printf("End condition met.");
-		//printStringToConsole("Got data from B");
-		//printBufferToConsole(STM_B.data[baseIndex]);
-		//printStringToConsole("\n");
-	}
-	else {
-		//printf("End condition not met. Buffer overflow maybe.");
-	}
-	return endCheck;
-}
-*/
 /* USER CODE BEGIN 0 */
 int main(void)
 {
-
-	/* USER CODE BEGIN 1 */
 	//Set Tx pin high on boot
 	setPinHigh(GPIOA, GPIO_PIN_8);
+
 	//Initialize stm board settings on boot
 	STM_BOARD_Init();
-	/* USER CODE END 1 */
 
 	/* MCU Configuration----------------------------------------------------------*/
 
@@ -345,28 +224,22 @@ int main(void)
 	//Set Tx pin low at the beginning of loop
 	setPinLow(GPIOA, GPIO_PIN_8);
 	printStringToConsole("B begin.\n");
-	// Initialize A's memory here ... ***
-	char *testString = "Ello!\n";
+
+	/* Operational Loop --------------------------------------- */
+	// Initialize B's memory
+	char *testString = "Hello!\n";
 	int i;
 	for(i=0; i<strlen(testString); i++){
 		STM_B.data[i] = testString[i];
 	}
 	printStringToConsole("B initialized.\n");
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
+
 	while (1)
 	{
-		/* USER CODE END WHILE */
-		// Run voting array
-		//printStringToConsole("Comparison begun!\n");
+		//printStringToConsole("B: Comparison begun!\n");
 		compareData();
-		/* USER CODE BEGIN 3 */
 	}
-	/* USER CODE END 3 */
-
 }
-
-/* USER CODE END 0 */
 
 void printStringToConsole(char message[]) {
 	if (HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut) == HAL_OK) {
@@ -596,78 +469,6 @@ void STM_BOARD_Init(void){
 	STM_C.PinPort = GPIOB;
 }
 
-/*
-void votingArray(void){
-	//clear each of the buffers
-	clearArray(STM_A.data);
-	clearArray(STM_B.data);
-	clearArray(STM_C.data);
-	//First check if the host STM received data from a sub-system.
-	if(getSignalData()==TRUE){
-		//send host data to other STMs
-		writeOthers();
-		//Read what the other STMs received
-		int readB = readBoard(STM_B., STM_B.data);
-		int readC = readBoard(STM_C., STM_C.data);
-		if(readB){
-			printStringToConsole("Got Data from B: ");
-			printBufferToConsole(STM_B.data);
-			printStringToConsole("\n");
-		}else{
-			printStringToConsole("Error reading buffer B.\n");
-		}
-		if(readC){
-			printStringToConsole("Got Data from C: ");
-			printBufferToConsole(STM_C.data);
-			printStringToConsole("\n");
-		}else{
-			printStringToConsole("Error reading buffer C.\n");
-		}
-		//if there was no error reading STMs, continue.
-		if(readB&&readC){
-			//Compare host data to received data.
-			int ab = compare(STM_B.data, STM_B.letter);
-			int ac = compare(STM_C.data, STM_C.letter);
-			//Check if Sync_R is high: Means other board is booting, so must not reset again.
-			if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5)>0.5){
-				ab=TRUE;
-				ac=TRUE;
-			}
-			//send reset if discrepancy in data comparison.
-			if(ab==FALSE){
-				setPinHigh(STM_B.PinPort, STM_B.Reset_Pin);
-			}
-			if(ac==FALSE){
-				setPinHigh(STM_C.PinPort, STM_C.Reset_Pin);
-			}
-			//If there is a difference between the data received in any STMs, then a reset was triggered.
-			//We must wait for the other STMs to reset.
-			if (ab==FALSE || ac==FALSE) {
-				HAL_Delay(RESET_TIME); //Give time for the STMs to reset
-			}
-			//Drive reset pins back low
-			setPinLow(STM_B.PinPort, STM_B.Reset_Pin);
-			setPinLow(STM_C.PinPort, STM_C.Reset_Pin);
-		}
-	}
-}
-*/
-//getSignalData(): this function reads the data from the host
-//Inputs: none
-//Outputs: Boolean value indicating whether signal data was successfully read or not
-//Has not been tested yet.
-
-//writeOthers(): Sends the data in buffer to other boards.
-//Input: None.
-//Output None.
-/*
-void writeOthers(void){
-	HAL_UART_Transmit(STM_B., STM_A.data, BUFFER_SIZE, timeOut);
-	HAL_UART_Transmit(STM_C., STM_A.data, BUFFER_SIZE, timeOut);
-	HAL_Delay(WAIT_TIME);
-}
-*/
-
 //printBufferToConsole(): Prints the data in one of the buffers to the console.
 //Input: the data buffer to print.
 //Output: None.
@@ -694,45 +495,6 @@ void setPinLow(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin){
 	char output[25];
 	sprintf(output, "Driving pin to low: %u\n", GPIO_Pin);
 	printStringToConsole(output);
-}
-
-//compare():compares data buffer with that of another stm.
-//Input: Which other data buffer it is comparing with and an identification char.
-//Output: Boolean value - True: Comparison was a match.
-int compare(uint8_t *bufferIn, char compare_cluster){
-	int out=TRUE;
-	for (int i = 0; i < strlen((const char*)STM_A.data)+1; i++) {
-		if (STM_A.data[i] != bufferIn[i]){
-			out = FALSE;
-		}
-	}
-	printCompare(compare_cluster, out);
-	return out;
-}
-
-//printCompare(): Prints the results of the comparison done in the voting array.
-//Input: Which two stms were compared and the result.
-//Output: nothing.
-void printCompare(char compare_cluster, int comparison){
-	char output[25];
-	sprintf(output, "Compared A and %c", compare_cluster);
-	printStringToConsole(output);
-	if(comparison==TRUE){
-		printStringToConsole(": Match.\n");
-	}else{
-		printStringToConsole(": No Match.\n");
-	}
-}
-
-//readBoard(): Writes incoming serial communicated to data buffer.
-//Input: The serial communication channel and the buffer to be saved to.
-//Output: Boolean value - True: Successfully read to buffer.
-int readBoard(UART_HandleTypeDef *huart, uint8_t *buffer) {
-	if(HAL_UART_Receive(&huart, buffer, BUFFER_SIZE, timeOut)==HAL_OK){
-		return TRUE;
-	}else{
-		return FALSE;
-	}
 }
 
 //clearArray(): This function writes null bytes to the buffer array passed to it
@@ -781,12 +543,3 @@ void assert_failed(uint8_t* file, uint32_t line)
 
 #endif
 
-/**
- * @}
- */
-
-/**
- * @}
- */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
