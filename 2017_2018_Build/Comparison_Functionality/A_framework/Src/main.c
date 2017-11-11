@@ -222,7 +222,7 @@ void compareData(int baseIndex, int numBytes){
 	// Format result string
 	char result[2];
 	itoa(comp_result, result, 10);
-	result[2] = '\0';
+	result[1] = '\0';
 
 	// Send result string to C
 	if(HAL_UART_Transmit(&huart6, (uint8_t*)result, strlen(result), timeOut) == HAL_OK){

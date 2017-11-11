@@ -49,12 +49,17 @@
 * D8 - uart1 TX
 * D0 - uart2 RX
 * D1 - uart2 TX
-* <other data connections for COMMS, ADCS, PAYLOAD, etc..>
+* A->C UART6
+* C->A UART1
+* A->B UART1
+* B->A UART1
+* Arduino UART2
+* <other data connections for COMMS, ADCS, PAYLOAD, etc..>*/
 
-/* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
 #include <string.h>
+#include <stdlib.h>
 
 /* Private variables ---------------------------------------------------------*/
 //Not in use at the moment.
@@ -74,12 +79,6 @@ UART_HandleTypeDef huart6; // connection to B
 
 //These characters are appended to the beginning and end of each string sent from the host this is just
 //In the below case, this represents the sequence AA0000000000000000YZ
-#define INITCHAR1 'X'
-#define INITCHAR2 'X'
-#define MIDCHAR1 'Y'
-#define MIDCHAR2 'Y'
-#define ENDCHAR1 'Z'
-#define ENDCHAR2 'Z'
 
 //Each board must have a different ID, and will have certain settings based on that ID.
 //The settings are declared in a switch case in the STM_BOARD_Init
@@ -101,109 +100,6 @@ struct board {
 	char letter;
 }STM_A, STM_B, STM_C;
 /* USER CODE END PV */
-
-// Receive result from A. Initiate power reset of A and B depending on result. Wait for reboot. Send memory to A and B.
-// Input: None
-// Output: None
-// Assumptions: -Upon booting, A and B request data from C.
-//				-A, B, and C have the exact same data[] array
-
-void compareData(){
-	int resultBytes = 1;
-	uint8_t tempBuffer[BUFFER_SIZE];
-	int result;
-	char result_s[2];
-	result_s[1] = '\0';
-
-	// Wait until A sends the result string --------------------------
-	while(HAL_UART_Receive(&huart1, tempBuffer, resultBytes, timeOut) != HAL_OK){
-		printf("C: Waiting for a result from A..\n");
-	}
-
-	// Convert from bytes to int
-	result = atoi(result_s);
-
-	// Act on the result of the comparison --------------------
-	if(result == TRUE){
-		// do nothing
-		printStringToConsole("C: A and B match. No reset needed.\n");
-	}
-	else{
-		// reset A and B
-		printStringToConsole("C: A and B disagree. Reset.\n");
-
-		// wait for data request from A and B -----------------------
-		// send them data ---------------------------
-	}
-}
-
-// Receive data from another STM. In B's case, it will only receive data from C.
-// Input: stm id, index to store the data at
-// Side-Effects: Read the UART status register to check if bytes have been received. Try to read numBytes of them.
-// Output: 0 if data is not read successfully. 1 if success.
-int getSignalData(char id, int baseIndex, int numBytes) {
-	//initial variable setup
-	HAL_Delay(WAIT_TIME);
-	uint8_t tempBuffer[BUFFER_SIZE];
-	clearArray(tempBuffer);
-	int endCheck = FALSE;
-	int midCheck = FALSE;
-	int startCheck = FALSE;
-	int count = 1;
-	int stmCount = 0;
-	UART_HandleTypeDef huart;
-
-	// Check if receiving data from B or C
-	if(id == 'B')
-		huart = huart1;
-	else
-		huart = huart2;
-
-	// Check status register for numBytes bytes, store them in tempBuffer.
-	// If successfully received specified number of bytes, return HAL_OK
-	// Wait HAL_MAX_DELAY ms before timeOut, then return HAL_TIMEOUT
-	if (HAL_UART_Receive(&huart, tempBuffer, numBytes, HAL_MAX_DELAY) == HAL_OK) {
-
-		//loop through read buffer until maxed out, or end condition is met
-		while (count<BUFFER_SIZE - 1 && endCheck != TRUE) {
-
-			//INITCHAR detection
-			if (tempBuffer[count - 1] == INITCHAR1 && tempBuffer[count] == INITCHAR2) {
-				startCheck = TRUE;
-			}
-			else if (startCheck) {
-				//ENDCHAR detection
-				if (tempBuffer[count] == ENDCHAR1 && tempBuffer[count + 1] == ENDCHAR2) {
-					endCheck = TRUE;
-				}
-
-				else{
-					STM_C.data[baseIndex + stmCount] = tempBuffer[count];
-					stmCount++;
-				}
-			}
-			count++;
-		}
-	}
-	else {
-		printf("Did not receive correct number of bytes.\n");
-		return 0;
-	}
-
-	// Append null char
-	STM_B.data[baseIndex + stmCount] = '\0';
-
-	//if the buffer also had the last two check chars (which means it had to have had the first two), then proceed.
-	if (endCheck == TRUE) {
-		printStringToConsole("Got data from C");
-		printBufferToConsole(STM_C.data[baseIndex]);
-		printStringToConsole("\n");
-	}
-	else {
-		printStringToConsole("End condition not met. Buffer overflow maybe.");
-	}
-	return endCheck;
-}
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void); // May need change ***
@@ -227,6 +123,46 @@ void printBufferToConsole(uint8_t *pData);
 void printCompare(char compare_cluster, int comparison);
 // int getSignalData(void);
 /* USER CODE END PFP */
+
+// Receive result from A. Initiate power reset of A and B depending on result. Wait for reboot. Send memory to A and B.
+// Input: None
+// Output: None
+// Assumptions: -Upon booting, A and B request data from C.
+//				-A, B, and C have the exact same data[] array
+
+void compareData(){
+	int resultBytes = 1;
+	uint8_t tempBuffer[BUFFER_SIZE];
+	int result;
+	char result_s[2];
+	result_s[1] = '\0';
+
+	// Wait until A sends the result string --------------------------
+	int received = 0;
+	while(received == 0){
+		//print("Waiting..\n");
+		printStringToConsole("C: Waiting for A..\n");
+		if(HAL_UART_Receive(&huart2, tempBuffer, resultBytes, timeOut) == HAL_OK)
+			received = 1;
+	}
+
+	result_s[0] = tempBuffer[0];
+	// Convert from bytes to int
+	result = atoi(result_s);
+
+	// Act on the result of the comparison --------------------
+	if(result == TRUE){
+		// do nothing
+		printStringToConsole("C: A and B match. No reset needed.\n");
+	}
+	else{
+		// reset A and B
+		printStringToConsole("C: A and B disagree. Reset.\n");
+
+		// wait for data request from A and B -----------------------
+		// send them data ---------------------------
+	}
+}
 
 /* USER CODE BEGIN 0 */
 int main(void)
@@ -258,12 +194,14 @@ int main(void)
 	setPinLow(GPIOA, GPIO_PIN_8);
 	/* USER CODE END 2 */
 
+	printStringToConsole("C Initialized.\n");
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1)
 	{
 		/* USER CODE END WHILE */
 		//Run voting array
+		printStringToConsole("C: Waiting.\n");
 		compareData();
 		/* USER CODE BEGIN 3 */
 	}
@@ -277,7 +215,7 @@ int main(void)
 
 
 void printStringToConsole(char message[]) {
-	if (HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut) == HAL_OK) {
+	if (HAL_UART_Transmit(&huart1, (uint8_t*)message, strlen(message), timeOut) == HAL_OK) {
 	}
 }
 
