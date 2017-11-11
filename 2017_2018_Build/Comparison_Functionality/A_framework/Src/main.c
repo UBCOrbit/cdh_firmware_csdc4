@@ -220,25 +220,18 @@ void compareData(int baseIndex, int numBytes){
 	}
 
 	// Format result string
-	char *result;
+	char result[2];
 	itoa(comp_result, result, 10);
-
-	/*
-	char* resString = (char*)malloc(sizeof(result));
-	// resString = "XX";
-	strcat(resString, result);
-	// strcat(resString, "ZZ");
+	result[2] = '\0';
 
 	// Send result string to C
-	/*
-	if(HAL_UART_Transmit(&huart2, (uint8_t*)resString, strlen(resString), timeOut) == HAL_OK){
+	if(HAL_UART_Transmit(&huart6, (uint8_t*)result, strlen(result), timeOut) == HAL_OK){
 		//printf("Result successfully sent.\n");
+		printStringToConsole("A: Comparison result is ");
 		printStringToConsole(result);
 	}
-
 	else
 		printf("Result could not be transmitted\n");
-	*/
 
 	/*
 	if(HAL_UART_Transmit(&huart2, (uint8_t*)resString, strlen(resString), timeOut) == HAL_OK){

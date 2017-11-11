@@ -346,7 +346,7 @@ int main(void)
 	setPinLow(GPIOA, GPIO_PIN_8);
 	printStringToConsole("B begin.\n");
 	// Initialize A's memory here ... ***
-	char *testString = "Hello!\n";
+	char *testString = "Ello!\n";
 	int i;
 	for(i=0; i<strlen(testString); i++){
 		STM_B.data[i] = testString[i];

@@ -1,6 +1,6 @@
 /**
 ******************************************************************************
-* File Name          : main.c
+* File Name          : masterComparison.c
 * Description        : Main program body
 ******************************************************************************
 *
@@ -40,61 +40,30 @@
 * Attribution-ShareAlike 4.0 license, summarized here:
 * http://creativecommons.org/licenses/by-sa/4.0/
 *
-* Description: Software for controlling radiation redundency in the Trillium architechture.
-*        Code designed for implementation on STM32 F401RE chips.
-*              Additional functionality for host to send commands to the core to enable error
-*        simulation functionality
-*        This code is to be run on all three STMs, changing the STM_ID variable
-*        per board (1, 2, 3)
+* Description: Comparison function for the Master STM.
+* Original Author: Carter Fang
+* Date Created: 2017/10/14
 *
-* Original Author: Divya Budihal, Ro-ee Tal
-* Date Created: 11/02/2017
-*
-*	Modifying Author: Ro-ee Tal
-*	Date Modified: 18/02/2017
-*	Description: Adjusted code to adhere to UBC Orbit coding Standard. Also cleaned up some methods and adjusted them accordingly.
-*
-*	Modifying Author: Ro-ee Tal
-*	Date Modified: 25/02/2017
-*	Description: Finalized methods. Fixed up a few things that would cause logic errors.
-*/
-
-/*
-* Connecting STM 1:
-* -1 to STM2 (it's B)
-* -6 to STM3 (it's c)
-*
-*  Connecting STM 2:
-* -1 to STM3 (it's B)
-* -6 to STM1 (it's c)
-*
-*  Connecting STM 3:
-* -1 to STM1 (it's B)
-* -6 to STM2 (it's c)
-*
-* D1 and D0 - 2 is designated for receiving signals from source.
-*
-* GPIOB 4 (D5) - Send signal to reset it's B
-* GPIOB 10 (D6) - Send signal to reset it's C
-*
-* SyncT - PA8
-* SyncR - PB5
-*/
+* Relevant Pins:
+* D2 - uart1 RX
+* D8 - uart1 TX
+* D0 - uart2 RX
+* D1 - uart2 TX
+* <other data connections for COMMS, ADCS, PAYLOAD, etc..>
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
 #include <string.h>
-#include <stdio.h>
 
 /* Private variables ---------------------------------------------------------*/
 //Not in use at the moment.
 ADC_HandleTypeDef hadc1;
 
-// Communication Channels
-UART_HandleTypeDef huart1; // STM_B
-UART_HandleTypeDef huart2; // STM_C (Arduino, for testing)
-UART_HandleTypeDef huart6;
+// Communication Channels - fill this in
+UART_HandleTypeDef huart1; // connection to A
+UART_HandleTypeDef huart2; // connection to B
+UART_HandleTypeDef huart6; // connection to B
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -105,21 +74,19 @@ UART_HandleTypeDef huart6;
 
 //These characters are appended to the beginning and end of each string sent from the host this is just
 //In the below case, this represents the sequence AA0000000000000000YZ
-/*
 #define INITCHAR1 'X'
 #define INITCHAR2 'X'
 #define MIDCHAR1 'Y'
 #define MIDCHAR2 'Y'
 #define ENDCHAR1 'Z'
 #define ENDCHAR2 'Z'
-*/
 
 //Each board must have a different ID, and will have certain settings based on that ID.
 //The settings are declared in a switch case in the STM_BOARD_Init
 #define STM_ID 1
 
 //Standard definitions for system
-#define BUFFER_SIZE 64
+#define BUFFER_SIZE 128 // Expand this maybe?
 #define WAIT_TIME 50
 #define RESET_TIME 500
 //Time used in Serial communication reading and sending
@@ -135,6 +102,109 @@ struct board {
 }STM_A, STM_B, STM_C;
 /* USER CODE END PV */
 
+// Receive result from A. Initiate power reset of A and B depending on result. Wait for reboot. Send memory to A and B.
+// Input: None
+// Output: None
+// Assumptions: -Upon booting, A and B request data from C.
+//				-A, B, and C have the exact same data[] array
+
+void compareData(){
+	int resultBytes = 1;
+	uint8_t tempBuffer[BUFFER_SIZE];
+	int result;
+	char result_s[2];
+	result_s[1] = '\0';
+
+	// Wait until A sends the result string --------------------------
+	while(HAL_UART_Receive(&huart1, tempBuffer, resultBytes, timeOut) != HAL_OK){
+		printf("C: Waiting for a result from A..\n");
+	}
+
+	// Convert from bytes to int
+	result = atoi(result_s);
+
+	// Act on the result of the comparison --------------------
+	if(result == TRUE){
+		// do nothing
+		printStringToConsole("C: A and B match. No reset needed.\n");
+	}
+	else{
+		// reset A and B
+		printStringToConsole("C: A and B disagree. Reset.\n");
+
+		// wait for data request from A and B -----------------------
+		// send them data ---------------------------
+	}
+}
+
+// Receive data from another STM. In B's case, it will only receive data from C.
+// Input: stm id, index to store the data at
+// Side-Effects: Read the UART status register to check if bytes have been received. Try to read numBytes of them.
+// Output: 0 if data is not read successfully. 1 if success.
+int getSignalData(char id, int baseIndex, int numBytes) {
+	//initial variable setup
+	HAL_Delay(WAIT_TIME);
+	uint8_t tempBuffer[BUFFER_SIZE];
+	clearArray(tempBuffer);
+	int endCheck = FALSE;
+	int midCheck = FALSE;
+	int startCheck = FALSE;
+	int count = 1;
+	int stmCount = 0;
+	UART_HandleTypeDef huart;
+
+	// Check if receiving data from B or C
+	if(id == 'B')
+		huart = huart1;
+	else
+		huart = huart2;
+
+	// Check status register for numBytes bytes, store them in tempBuffer.
+	// If successfully received specified number of bytes, return HAL_OK
+	// Wait HAL_MAX_DELAY ms before timeOut, then return HAL_TIMEOUT
+	if (HAL_UART_Receive(&huart, tempBuffer, numBytes, HAL_MAX_DELAY) == HAL_OK) {
+
+		//loop through read buffer until maxed out, or end condition is met
+		while (count<BUFFER_SIZE - 1 && endCheck != TRUE) {
+
+			//INITCHAR detection
+			if (tempBuffer[count - 1] == INITCHAR1 && tempBuffer[count] == INITCHAR2) {
+				startCheck = TRUE;
+			}
+			else if (startCheck) {
+				//ENDCHAR detection
+				if (tempBuffer[count] == ENDCHAR1 && tempBuffer[count + 1] == ENDCHAR2) {
+					endCheck = TRUE;
+				}
+
+				else{
+					STM_C.data[baseIndex + stmCount] = tempBuffer[count];
+					stmCount++;
+				}
+			}
+			count++;
+		}
+	}
+	else {
+		printf("Did not receive correct number of bytes.\n");
+		return 0;
+	}
+
+	// Append null char
+	STM_B.data[baseIndex + stmCount] = '\0';
+
+	//if the buffer also had the last two check chars (which means it had to have had the first two), then proceed.
+	if (endCheck == TRUE) {
+		printStringToConsole("Got data from C");
+		printBufferToConsole(STM_C.data[baseIndex]);
+		printStringToConsole("\n");
+	}
+	else {
+		printStringToConsole("End condition not met. Buffer overflow maybe.");
+	}
+	return endCheck;
+}
+
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void); // May need change ***
 void Error_Handler(void);
@@ -149,20 +219,18 @@ static void MX_USART6_UART_Init(void);
 void STM_BOARD_Init(void);
 void clearArray(uint8_t *buffer);
 int compare(uint8_t *bufferIn, char compare_cluster);
-int readBoard(UART_HandleTypeDef *, uint8_t *buffer);
+int readBoard(UART_HandleTypeDef *huart, uint8_t *buffer);
 void setPinLow(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 void setPinHigh(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 void printStringToConsole(char message[]);
 void printBufferToConsole(uint8_t *pData);
 void printCompare(char compare_cluster, int comparison);
-int getSignalData(char id, int baseIndex, int numBytes);
+// int getSignalData(void);
 /* USER CODE END PFP */
-
 
 /* USER CODE BEGIN 0 */
 int main(void)
 {
-
 	/* USER CODE BEGIN 1 */
 	//Set Tx pin high on boot
 	setPinHigh(GPIOA, GPIO_PIN_8);
@@ -185,30 +253,34 @@ int main(void)
 	MX_USART2_UART_Init();
 	MX_USART6_UART_Init();
 
+	/* USER CODE BEGIN 2 */
 	//Set Tx pin low at the beginning of loop
 	setPinLow(GPIOA, GPIO_PIN_8);
-	char message;
-	uint8_t buffer[BUFFER_SIZE];
-	while(1){
-		if(HAL_UART_Receive(&huart2, buffer, 1, timeOut) == HAL_OK){
-			printStringToConsole("\nMessage received:\n");
-			message = buffer;
-			printStringToConsole(message);
-		}
-		else{
-			char* endMsg = "Nothing received\n";
-			printStringToConsole("Nothing.\n");
-		}
+	/* USER CODE END 2 */
+
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
+	while (1)
+	{
+		/* USER CODE END WHILE */
+		//Run voting array
+		compareData();
+		/* USER CODE BEGIN 3 */
 	}
+	/* USER CODE END 3 */
 
 }
 
 /* USER CODE END 0 */
 
+
+
+
 void printStringToConsole(char message[]) {
 	if (HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut) == HAL_OK) {
 	}
 }
+
 
 /** System Clock Configuration
  */
@@ -432,7 +504,6 @@ void STM_BOARD_Init(void){
 	STM_C.Reset_Pin = GPIO_PIN_10;
 	STM_C.PinPort = GPIOB;
 }
-
 /*
 void votingArray(void){
 	//clear each of the buffers
@@ -444,8 +515,8 @@ void votingArray(void){
 		//send host data to other STMs
 		writeOthers();
 		//Read what the other STMs received
-		int readB = readBoard(STM_B., STM_B.data);
-		int readC = readBoard(STM_C., STM_C.data);
+		int readB = readBoard(STM_B.huart, STM_B.data);
+		int readC = readBoard(STM_C.huart, STM_C.data);
 		if(readB){
 			printStringToConsole("Got Data from B: ");
 			printBufferToConsole(STM_B.data);
@@ -497,19 +568,18 @@ void votingArray(void){
 //writeOthers(): Sends the data in buffer to other boards.
 //Input: None.
 //Output None.
-/*
 void writeOthers(void){
-	HAL_UART_Transmit(STM_B., STM_A.data, BUFFER_SIZE, timeOut);
-	HAL_UART_Transmit(STM_C., STM_A.data, BUFFER_SIZE, timeOut);
+	HAL_UART_Transmit(STM_B.huart, STM_A.data, BUFFER_SIZE, timeOut);
+	HAL_UART_Transmit(STM_C.huart, STM_A.data, BUFFER_SIZE, timeOut);
 	HAL_Delay(WAIT_TIME);
 }
-*/
+
 
 //printBufferToConsole(): Prints the data in one of the buffers to the console.
 //Input: the data buffer to print.
 //Output: None.
 void printBufferToConsole(uint8_t *pData){
-	if(HAL_UART_Transmit(&huart1, pData, BUFFER_SIZE, timeOut)==HAL_OK){
+	if(HAL_UART_Transmit(&huart6, pData, BUFFER_SIZE, timeOut)==HAL_OK){
 	}
 }
 
@@ -565,7 +635,7 @@ void printCompare(char compare_cluster, int comparison){
 //Input: The serial communication channel and the buffer to be saved to.
 //Output: Boolean value - True: Successfully read to buffer.
 int readBoard(UART_HandleTypeDef *huart, uint8_t *buffer) {
-	if(HAL_UART_Receive(&huart, buffer, BUFFER_SIZE, timeOut)==HAL_OK){
+	if(HAL_UART_Receive(huart, buffer, BUFFER_SIZE, timeOut)==HAL_OK){
 		return TRUE;
 	}else{
 		return FALSE;
