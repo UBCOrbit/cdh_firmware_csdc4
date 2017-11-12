@@ -148,12 +148,13 @@ void compareData(){
 
 	// Execute action based on result received --------------------
 	if(result == TRUE){
-		// do nothing
 		printStringToConsole("C: A and B match. No reset needed.\n");
 	}
 	else{
-		// reset A and B
+		/* RESET CODE ---------------------- */
 		printStringToConsole("C: A and B disagree. Reset.\n");
+		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_9); // Change up GPIOA and GPIO_PIN_3 here
+		HAL_Delay(3000); // Delay
 	}
 }
 
@@ -177,6 +178,7 @@ int main(void)
 	MX_USART1_UART_Init();
 	MX_USART2_UART_Init();
 	MX_USART6_UART_Init();
+
 	//Set Tx pin low at the beginning of loop
 	setPinLow(GPIOA, GPIO_PIN_8);
 
@@ -354,7 +356,6 @@ static void MX_USART6_UART_Init(void)
  */
 static void MX_GPIO_Init(void)
 {
-
 	GPIO_InitTypeDef GPIO_InitStruct;
 
 	/* GPIO Ports Clock Enable */
@@ -389,12 +390,23 @@ static void MX_GPIO_Init(void)
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+	/*Configure GPIO pin : PB9 */
+	GPIO_InitStruct.Pin = GPIO_PIN_9;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOA, LD2_Pin|GPIO_PIN_8, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10|GPIO_PIN_4, GPIO_PIN_RESET);
 
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
+	HAL_Delay(500);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
 }
 
 /* USER CODE BEGIN 4 */

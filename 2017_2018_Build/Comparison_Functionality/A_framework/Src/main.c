@@ -127,6 +127,7 @@ int getSignalData(char id, int baseIndex, int numBytes);
 //				-A, B, and C have the exact same data[] array
 void compareData(int baseIndex, int numBytes){
 	printStringToConsole("A: Comparison begun.\n");
+	char tempOutput[30];
 
 	// Generate request string for B
 	char addressString[8] = "";
@@ -138,18 +139,19 @@ void compareData(int baseIndex, int numBytes){
 	strcpy(fullString, addressString);
 	strcat(fullString,sizeString);
 
+
 	/* Debug messages
-	printStringToConsole("Index:");
-	printStringToConsole(addressString);
-	printStringToConsole("\n");
+	sprintf(tempOutput, "Index: %s\n", addressString);
+	printStringToConsole(tempOutput);
+	tempOutput[0] = '\0';
 
-	printStringToConsole("Size:");
-	printStringToConsole(sizeString);
-	printStringToConsole("\n");
+	sprintf(tempOutput, "Number Bytes: %s\n", sizeString);
+	printStringToConsole(tempOutput);
+	tempOutput[0] = '\0';
 
-	printStringToConsole("Full string is:");
-	printStringToConsole(fullString);
-	printStringToConsole("\n");
+	sprintf(tempOutput, "Full string: %s\n", fullString);
+	printStringToConsole(tempOutput);
+	tempOutput[0] = '\0';
 	*/
 
 	// Send request to B
@@ -180,9 +182,9 @@ void compareData(int baseIndex, int numBytes){
 
 	// Send result string to C
 	if(HAL_UART_Transmit(&huart6, (uint8_t*)result, strlen(result), timeOut) == HAL_OK){
-		printStringToConsole("A: Comparison result is ");
-		printStringToConsole(result);
-		printStringToConsole("\n");
+		sprintf(tempOutput, "A: Comparison result is %s\n", result);
+		printStringToConsole(tempOutput);
+		tempOutput[0] = '\0';
 	}
 	else
 		printStringToConsole("A: Could not transmit message.\n ");
@@ -491,12 +493,21 @@ static void MX_GPIO_Init(void)
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+	/*Configure GPIO pin : PB9 */
+	GPIO_InitStruct.Pin = GPIO_PIN_9;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOA, LD2_Pin|GPIO_PIN_8, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10|GPIO_PIN_4, GPIO_PIN_RESET);
 
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
 }
 
 /* USER CODE BEGIN 4 */

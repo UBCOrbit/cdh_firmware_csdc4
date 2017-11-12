@@ -127,7 +127,8 @@ void printBufferToConsole(uint8_t *pData);
 // Assumptions: -Upon booting, A copies its data from C.
 //				-A, B, and C have the exact same data[] array
 void compareData(){
-
+	char tempOutput[30];
+	char temp[2] = "\0";
 	int reqBytes = 2;
 	uint8_t tempBuffer[BUFFER_SIZE];
 	clearArray(tempBuffer);
@@ -149,21 +150,21 @@ void compareData(){
 	// Parse data request string ------------------------
 	baseIndex_s[0] = tempBuffer[0];
 	baseIndex_s[1] = '\0';
-	char temp[2] = "\0";
-	temp[0] = tempBuffer[0];
+
 	/* Debug Messages */
-	printStringToConsole("B: Base Address:");
-	printStringToConsole(temp);
-	printStringToConsole("\n");
+	sprintf(tempOutput, "B: Base Address: %s\n", baseIndex_s);
+	printStringToConsole(tempOutput);
+	tempOutput[0] = '\0';
+
 
 	// Store numBytes
 	numBytes_s[0] = tempBuffer[1];
 	numBytes_s[1] = '\0';
-	temp[0] = tempBuffer[1];
+
 	/* Debug Messages */
-	printStringToConsole("B: Size:");
-	printStringToConsole(temp);
-	printStringToConsole("\n");
+	sprintf(tempOutput, "B: Size: %s\n", numBytes_s);
+	printStringToConsole(tempOutput);
+	tempOutput[0] = '\0';
 
 	// Convert from bytes to int
 	baseIndex = atoi(baseIndex_s);
@@ -176,6 +177,7 @@ void compareData(){
 	for(count = 0; count < numBytes; count++){
 		reqData[count] = STM_B.data[baseIndex+count];
 		temp[0] = (char)reqData[count];
+
 		/* Debug Messages
 		printStringToConsole("Letter stored.\n");
 		printStringToConsole(temp);
@@ -227,7 +229,7 @@ int main(void)
 
 	/* Operational Loop --------------------------------------- */
 	// Initialize B's memory
-	char *testString = "Hello!\n";
+	char *testString = "Ello!\n";
 	int i;
 	for(i=0; i<strlen(testString); i++){
 		STM_B.data[i] = testString[i];
