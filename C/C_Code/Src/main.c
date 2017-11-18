@@ -50,6 +50,7 @@
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart6;
+int counter = 0;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -135,9 +136,7 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
-	  printStringToConsole("C: Waiting.\n");
 	  compareData();
-	  HAL_Delay(600);
   /* USER CODE BEGIN 3 */
 
   }
@@ -335,8 +334,6 @@ void compareData(){
 	// Wait to receive result of comparison from A --------------------------
 	int received = 0;
 	while(received == 0){
-		//print("Waiting..\n");
-		printStringToConsole("C: Waiting for A..\n");
 		if(HAL_UART_Receive(&huart2, tempBuffer, resultBytes, timeOut) == HAL_OK)
 			received = 1;
 	}
@@ -349,12 +346,14 @@ void compareData(){
 	// Execute action based on result received --------------------
 	if(result == TRUE){
 		printStringToConsole("C: A and B match. No reset needed.\n");
+		counter = 0;
 	}
 	else{
 		/* RESET CODE ---------------------- */
 		printStringToConsole("C: A and B disagree. Reset.\n");
+		counter = 0;
 		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9); // Change up GPIOA and GPIO_PIN_3 here
-		HAL_Delay(1000); // Delay
+		HAL_Delay(500); // Delay
 		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9);
 	}
 }

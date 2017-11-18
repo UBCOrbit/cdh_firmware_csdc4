@@ -62,7 +62,7 @@ UART_HandleTypeDef huart6;
 #define STM_ID 2
 
 //Standard definitions for system
-#define BUFFER_SIZE 64
+#define BUFFER_SIZE 16
 #define WAIT_TIME 50
 #define RESET_TIME 500
 //Time used in Serial communication reading and sending
@@ -70,7 +70,7 @@ UART_HandleTypeDef huart6;
 
 //Structure declaring board settings, which may vary depending on the board. Determined using STM_ID
 struct board {
-	uint8_t data[BUFFER_SIZE];
+	char data[BUFFER_SIZE];
 	char letter;
 }STM_A, STM_B, STM_C;
 /* USER CODE END PV */
@@ -124,11 +124,10 @@ int main(void)
   MX_USART6_UART_Init();
 
   /* USER CODE BEGIN 2 */
-  printStringToConsole("B begin.\n");
 
   	/* Operational Loop --------------------------------------- */
   	// Initialize B's memory
-  char *testString = "Hello!\n";
+  char* testString = "Hello!\n";
   int i;
   for(i=0; i<strlen(testString); i++){
   	STM_B.data[i] = testString[i];
@@ -141,9 +140,9 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
-	  compareData();
-	  printStringToConsole("B Finished Comparing\n");
-	  HAL_Delay(500);
+	  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_9))
+		  compareData();
+	 // printStringToConsole("B Finished Comparing\n");
   /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -307,6 +306,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PC9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 }
 
 /* USER CODE BEGIN 4 */
@@ -327,41 +331,31 @@ void printStringToConsole(char message[]) {
 }
 
 void compareData(){
-	char tempOutput[30];
-	char temp[2] = "\0";
 	int reqBytes = 2;
-	uint8_t tempBuffer[BUFFER_SIZE];
-	clearArray(tempBuffer);
-	int count = 0;
 	int baseIndex, numBytes;
+
 	char baseIndex_s[8];
 	char numBytes_s[8];
+
+	uint8_t tempBuffer[BUFFER_SIZE];
+	clearArray(tempBuffer);
 
 	// Wait until A sends the request string --------------------------
 	int received = 0;
 	while(received == 0){
-		if(HAL_UART_Receive(&huart1, tempBuffer, reqBytes+1, timeOut) == HAL_OK)
+		if(HAL_UART_Receive(&huart1, tempBuffer, reqBytes, timeOut) == HAL_OK)
 			received = 1;
 	}
 
 	printStringToConsole("B: Received data from A\n");
-
+	printStringToConsole(tempBuffer);
 	// Parse data request string ------------------------
 	baseIndex_s[0] = tempBuffer[0];
 	baseIndex_s[1] = '\0';
 
-	/* Debug Messages */
-	printStringToConsole(tempOutput);
-	tempOutput[0] = '\0';
-
-
 	// Store numBytes
 	numBytes_s[0] = tempBuffer[1];
 	numBytes_s[1] = '\0';
-
-	/* Debug Messages */
-	printStringToConsole(tempOutput);
-	tempOutput[0] = '\0';
 
 	// Convert from bytes to int
 	baseIndex = atoi(baseIndex_s);
@@ -369,27 +363,19 @@ void compareData(){
 
 	// Generate data array ------------------------
 	uint8_t reqData[numBytes];
+	clearArray(reqData);
 
 	// Transfer data from internal storage to msg buffer
-	for(count = 0; count < numBytes; count++){
+	for(int count = 0; count < numBytes; count++){
 		reqData[count] = STM_B.data[baseIndex+count];
-		temp[0] = (char)reqData[count];
-
-		/* Debug Messages
-		printStringToConsole("Letter stored.\n");
-		printStringToConsole(temp);
-		*/
 	}
 
-	int sending = 0;
+	HAL_Delay(500);
 	// Send data to A ----------------------------
-	printStringToConsole("B:Beginning transmission\n");
-	while(sending == 0){
-		if (HAL_UART_Transmit(&huart1, (uint8_t*)reqData, (uint16_t)sizeof(reqData), timeOut) == HAL_OK)
-			sending = 1;
-		HAL_Delay(50);
-	}
-	printStringToConsole("B: Sent data to A!\n");
+	printStringToConsole("\nB:Beginning transmission\n");
+
+	if (HAL_UART_Transmit(&huart1, (uint8_t*)reqData, strlen(reqData), timeOut) == HAL_OK)
+		printStringToConsole("B: Sent data to A!\n");
 	// Get reset or not --------------------------
 }
 

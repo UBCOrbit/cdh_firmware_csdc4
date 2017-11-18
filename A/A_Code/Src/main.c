@@ -50,6 +50,7 @@
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart6;
+int counter = 0;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -86,13 +87,12 @@ static void MX_USART6_UART_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 void STM_BOARD_Init(void);
 void printStringToConsole(char message[]);
-int getSignalData(char id, int baseIndex, int numBytes);
+void processData(uint8_t tempBuffer[], int baseIndex, int numBytes);
 void compareData(int baseIndex, int numBytes);
 void clearArray(uint8_t *buffer);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-
 /* USER CODE END 0 */
 
 int main(void)
@@ -138,8 +138,8 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
-	  compareData(0, strlen("Hello!\n")*sizeof(char));
-	  printStringToConsole("Comparison complete.\n");
+	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
+	  compareData(0, 7);
 	  HAL_Delay(500);
   /* USER CODE BEGIN 3 */
 
@@ -279,6 +279,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
@@ -299,11 +309,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin Output Level */
-   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-
-   /*Configure GPIO pin Output Level */
-   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+  /*Configure GPIO pin : PC9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 }
 
 /* USER CODE BEGIN 4 */
@@ -330,35 +341,39 @@ void printStringToConsole(char message[]) {
 //				-A, B, and C have the exact same data[] array
 void compareData(int baseIndex, int numBytes){
 	printStringToConsole("A: Comparison begun.\n");
-	char tempOutput[30];
 
 	// Generate request string for B
 	char addressString[8] = "";
 	itoa(baseIndex, addressString, 10);
+
 	char sizeString[8] = "";
 	itoa(numBytes, sizeString, 10);
-	char fullString[16] = "";
 
+	char fullString[16] = "";
 	strcpy(fullString, addressString);
 	strcat(fullString, sizeString);
 
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
+
 	// Send request to B
-	int sending = 0;
-	while (sending == 0) {
-		if (HAL_UART_Transmit(&huart1, (uint8_t*)fullString, (uint16_t)sizeof(fullString), timeOut) == HAL_OK)
-			sending = 1;
-		HAL_Delay(50);
-	}
+	HAL_Delay(500);
+	printStringToConsole(fullString);
+	if (HAL_UART_Transmit(&huart1, (uint8_t*)fullString, strlen(fullString), timeOut) == HAL_OK)
+		printStringToConsole("A: Sent Request\n");
+
 
 	// Wait for data from B
 	int received = 0;
+	uint8_t tempBuffer[BUFFER_SIZE];
+	clearArray(tempBuffer);
+
 	while(received == 0){
-		printStringToConsole("A: Waiting for B data..\n");
-		if(getSignalData('B', baseIndex, numBytes))
+		if(HAL_UART_Receive(&huart1, tempBuffer, numBytes, timeOut) == HAL_OK)
 			received = 1;
 	}
 
 	printStringToConsole("A: Received B data\n");
+	processData(tempBuffer, baseIndex, numBytes);
 
 	// Compare received B data with A data
 	int i = 0;
@@ -374,59 +389,25 @@ void compareData(int baseIndex, int numBytes){
 	result[1] = '\0';
 
 	// Send result string to C
-	if(HAL_UART_Transmit(&huart6, (uint8_t*)result, strlen(result), timeOut) == HAL_OK){
-		printStringToConsole(tempOutput);
-		tempOutput[0] = '\0';
-	}
-	else
-		printStringToConsole("A: Could not transmit message.\n ");
+	HAL_UART_Transmit(&huart6, (uint8_t*)result, strlen(result), timeOut);
 }
 
 // Receive data from another STM
 // Input: stm id, index to store the data at
 // Side-Effects: Read the UART status register to check if bytes have been received. Try to read numBytes of them.
 // Output: 0 if data is not read successfully. 1 if success.
-int getSignalData(char id, int baseIndex, int numBytes) {
-	//initial variable setup
-	// Wait to initialize variables
-	uint8_t tempBuffer[BUFFER_SIZE];
-	clearArray(tempBuffer);
-	/*
-	int endCheck = FALSE;
-	int startCheck = FALSE;
-	*/
+void processData(uint8_t tempBuffer[], int baseIndex, int numBytes) {
 	int stmCount = 0;
 
-	char byte_s[8];
-	itoa(numBytes, byte_s, 10);
-
-	// Check status register for numBytes bytes, store them in tempBuffer.
-	// If successfully received specified number of bytes, return HAL_OK
-	// Wait HAL_MAX_DELAY ms before timeOut, then return HAL_TIMEOUT
-	// **change back to huart1 for B
-	if (HAL_UART_Receive(&huart1, tempBuffer, numBytes, timeOut) == HAL_OK) {
-
-		// Store address and numbytes
-		printStringToConsole("A: Inside receive..\n");
-		while (stmCount <= numBytes + 1) {
-			STM_B.data[baseIndex + stmCount] = tempBuffer[stmCount];
-			//printStringToConsole("One byte stored.\n");
-			char currChar[2] = "\0";
-			currChar[0] = (char)tempBuffer[stmCount];
-			printStringToConsole(currChar);
-			stmCount++;
-		}
-	}
-	else {
-		// printStringToConsole("A: Did not receive correct number of bytes.\n");
-		return FALSE;
+	// Store address and numbytes
+	while (stmCount <= numBytes + 1) {
+		STM_B.data[baseIndex + stmCount] = tempBuffer[stmCount];
+		stmCount++;
 	}
 
 	// Append null char
 	STM_B.data[baseIndex + stmCount] = '\0';
 	printStringToConsole("A: Finished comparison.\n");
-	//if the buffer also had the last two check chars (which means it had to have had the first two), then proceed.
-	return TRUE;
 }
 
 //clearArray(): This function writes null bytes to the buffer array passed to it

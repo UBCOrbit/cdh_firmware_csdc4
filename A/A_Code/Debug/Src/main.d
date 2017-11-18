@@ -25,6 +25,8 @@ Src/main.o: ../Src/main.c \
  C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h \
  C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h \
  C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h \
+ C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
+ C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
 
 C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Inc/main.h:
@@ -78,5 +80,9 @@ C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/
 C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h:
 
 C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h:
+
+C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h:
+
+C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h:
 
 C:/Users/Andrada\ Zoltan/Desktop/UBCOrbit/A/A_Code/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
