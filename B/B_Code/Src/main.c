@@ -35,6 +35,45 @@
   *
   ******************************************************************************
   */
+
+/**
+ * A UBC Orbit team software production
+ * Project: Trillium Architecture V3
+ *
+ * This software is protected under a Creative Commons
+ * Attribution-ShareAlike 4.0 license, summarized here:
+ * http://creativecommons.org/licenses/by-sa/4.0/
+ *
+ * Description: Software for controlling data redundancy against radiation in the Trillium architecture.
+ *        Code designed for implementation on STM32 F401RE chips. Code used to test comparison protocol on
+ *        STMs under proton beam at TRIUMPH.
+ *				This code is to be run on only STM_B; it will receive a query for data from STM_A, process that
+ *				query and send the required data to STM_A.
+ *
+ * Original Author: Carter Fang
+ * Date Created: 04/11/2017
+ *
+ *	Modifying Author: Carter Fang, Basil Wong, Andrada Zoltan
+ *	Date Modified: 06/11/2017
+ *	Description: Debugged any timing issues, and achieved successful communication with STM_A.
+ *
+ *	Modifying Author: Andrada Zoltan
+ *	Date Modified: 17/11/2017
+ *	Description: Cleaned up some unused code, added in delays to solve timing issues. Debugged uses of UART_Transmit function.
+ */
+
+/*
+ * Connecting STM_B:
+ * 		- huart1 transmit to STM_A
+ * 		- huart1 receive to STM_A
+ * 		- PC9 (GPIO_Input) from STM_A (used for synchronization between STM_A and STM_B)
+ *
+ * 		- huart2 transmit to Arduino (only used for debugging purposes, not necessary connection)
+ *
+ * 		- huart6 transmit to STM_C
+ */
+
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
@@ -53,19 +92,15 @@ UART_HandleTypeDef huart6;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-//definition for boolean variables used in conditional statements
+
+//Definition for boolean variables used in conditional statements
 #define TRUE 1
 #define FALSE 0
 
-//Each board must have a different ID, and will have certain settings based on that ID.
-//The settings are declared in a switch case in the STM_BOARD_Init
-#define STM_ID 2
+//Standard definition for data buffer
+#define BUFFER_SIZE 64
 
-//Standard definitions for system
-#define BUFFER_SIZE 16
-#define WAIT_TIME 50
-#define RESET_TIME 500
-//Time used in Serial communication reading and sending
+//Timeout used in Serial communication reading and sending
 #define timeOut 0x0FFF
 
 //Structure declaring board settings, which may vary depending on the board. Determined using STM_ID
@@ -140,6 +175,8 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
+
+	  //Wait for synchronization signal from STM_A, then begin comparison function.
 	  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_9))
 		  compareData();
 	 // printStringToConsole("B Finished Comparing\n");
@@ -325,22 +362,27 @@ void STM_BOARD_Init(void){
 	clearArray(STM_C.data);
 }
 
+// Description: Transmit a string over huart2. If solder bridges SB13 and SB14 are not removed,
+//				this will transmit a message to the STLink chip and can be printed on a serial monitor
+//				directly (such as the Arduino serial monitor). Otherwise, need to connect the huart2 pins to
+// 				an Ardunio an receive the message from that end.
+// Input: message to be transmitted
 void printStringToConsole(char message[]) {
-	if (HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut) == HAL_OK) {
-	}
+	HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut);
 }
 
-void compareData(){
+//Description: Wait for STM_A to send query string, process the query string and send the data back.
+void compareData() {
 	int reqBytes = 2;
 	int baseIndex, numBytes;
 
-	char baseIndex_s[8];
-	char numBytes_s[8];
+	char baseIndex_s[2];
+	char numBytes_s[2];
 
 	uint8_t tempBuffer[BUFFER_SIZE];
 	clearArray(tempBuffer);
 
-	// Wait until A sends the request string --------------------------
+	// Wait until STM_A sends the request string --------------------------
 	int received = 0;
 	while(received == 0){
 		if(HAL_UART_Receive(&huart1, tempBuffer, reqBytes, timeOut) == HAL_OK)
@@ -348,40 +390,37 @@ void compareData(){
 	}
 
 	printStringToConsole("B: Received data from A\n");
-	printStringToConsole(tempBuffer);
-	// Parse data request string ------------------------
+
+	// Parse data request string --------------------------------------
 	baseIndex_s[0] = tempBuffer[0];
 	baseIndex_s[1] = '\0';
 
-	// Store numBytes
+	// Store numBytes -------------------------------------------------
 	numBytes_s[0] = tempBuffer[1];
 	numBytes_s[1] = '\0';
 
-	// Convert from bytes to int
+	// Convert from bytes to int --------------------------------------
 	baseIndex = atoi(baseIndex_s);
 	numBytes = atoi(numBytes_s);
 
-	// Generate data array ------------------------
+	// Generate data array --------------------------------------------
 	uint8_t reqData[numBytes];
 	clearArray(reqData);
 
-	// Transfer data from internal storage to msg buffer
+	// Transfer data from internal storage to msg buffer --------------
 	for(int count = 0; count < numBytes; count++){
 		reqData[count] = STM_B.data[baseIndex+count];
 	}
 
+	// Send data to STM_A -------------------------------------------------
 	HAL_Delay(500);
-	// Send data to A ----------------------------
 	printStringToConsole("\nB:Beginning transmission\n");
 
-	if (HAL_UART_Transmit(&huart1, (uint8_t*)reqData, strlen(reqData), timeOut) == HAL_OK)
-		printStringToConsole("B: Sent data to A!\n");
-	// Get reset or not --------------------------
+	HAL_UART_Transmit(&huart1, (uint8_t*)reqData, strlen(reqData), timeOut);
 }
 
-//clearArray(): This function writes null bytes to the buffer array passed to it
-//Input: buffer that needs to be cleared
-//Output: None
+//Description: This function writes null bytes to the buffer array passed to it
+//Input: pointer to buffer that needs to be cleared
 void clearArray(uint8_t *buffer){
 	for (int i = 0; i < BUFFER_SIZE; i++) {
 		buffer[i] = '\0';
