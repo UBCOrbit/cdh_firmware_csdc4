@@ -40,7 +40,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern int counter;
+extern int counterA;
 
 /******************************************************************************/
 /*            Cortex-M4 Processor Interruption and Exception Handlers         */ 
@@ -52,14 +52,6 @@ extern int counter;
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
-  counter++;
-  if(counter == 500)
-  	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-
-  if (counter == 20000) {
-	  counter = 0;
-	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
-  }
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   HAL_SYSTICK_IRQHandler();

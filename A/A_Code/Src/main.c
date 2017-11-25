@@ -35,6 +35,45 @@
   *
   ******************************************************************************
   */
+
+/**
+ * A UBC Orbit team software production
+ * Project: Trillium Architecture V3
+ *
+ * This software is protected under a Creative Commons
+ * Attribution-ShareAlike 4.0 license, summarized here:
+ * http://creativecommons.org/licenses/by-sa/4.0/
+ *
+ * Description: Software for controlling data redundancy against radiation in the Trillium architecture.
+ *        Code designed for implementation on STM32 F401RE chips. Code used to test comparison protocol on
+ *        STMs under proton beam at TRIUMPH.
+ *				This code is to be run on only STM_A (master STM); it will send a query for data from STM_B, once
+ *				received it will compare STM_A and STM_B data and send a signal to STM_C about the status of the
+ *				comparison.
+ *
+ * Original Author: Carter Fang
+ * Date Created: 28/10/2017
+ *
+ *	Modifying Author: Carter Fang, Basil Wong, Andrada Zoltan
+ *	Date Modified: 06/11/2017
+ *	Description: Debugged any timing issues, and achieved successful communication with STM_B.
+ *
+ *	Modifying Author: Andrada Zoltan
+ *	Date Modified: 17/11/2017
+ *	Description: Cleaned up some unused code, added in delays to solve timing issues. Debugged uses of UART_Transmit function.
+ */
+
+/*
+ * Connecting STM_A:
+ * 		- huart1 transmit to STM_B
+ * 		- huart1 receive to STM_B
+ * 		- PC9 (GPIO_Output) to STM_B (used for synchronization between STM_A and STM_B)
+ *
+ * 		- huart2 transmit to Arduino (only used for debugging purposes, not necessary connection)
+ *
+ * 		- huart6 transmit to STM_C
+ */
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
@@ -50,26 +89,21 @@
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart6;
-int counter = 0;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-//definition for boolean variables used in conditional statements
+
+//Definition for boolean variables used in conditional statements
 #define TRUE 1
 #define FALSE 0
 
-//Each board must have a different ID, and will have certain settings based on that ID.
-//The settings are declared in a switch case in the STM_BOARD_Init
-#define STM_ID 1
-
-//Standard definitions for system wait time
+//Standard definition for data buffer
 #define BUFFER_SIZE 64
-#define WAIT_TIME 50
-#define RESET_TIME 500
-//Time used in Serial communication reading and sending
+
+//Timeout used in Serial communication transmitting and receiving
 #define timeOut 0x0FFF
 
-//Structure declaring board settings, which may vary depending on the board. Determined using STM_ID
+//Structure declaring board settings, allows each board to keep track of other boards.
 struct board {
 	uint8_t data[BUFFER_SIZE];
 	char letter;
@@ -90,8 +124,6 @@ void printStringToConsole(char message[]);
 void processData(uint8_t tempBuffer[], int baseIndex, int numBytes);
 void compareData(int baseIndex, int numBytes);
 void clearArray(uint8_t *buffer);
-char *formatRequest(long address, long size, int base);
-void parseRequest(long *size, long *address, char *reqString, int base);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -128,8 +160,7 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   char *testString = "Hello!\n";
-  int i;
-  for(i=0; i<strlen(testString); i++){
+  for(int i = 0; i < strlen(testString); i++){
   	STM_A.data[i] = testString[i];
   }
   printStringToConsole("STM A Initialized!\n");
@@ -140,9 +171,11 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
+	  HAL_Delay(500);
+
+	  //Sends signal to STM_B to ensure synchronization when starting comparison function.
 	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
 	  compareData(0, 7);
-	  HAL_Delay(500);
   /* USER CODE BEGIN 3 */
 
   }
@@ -286,7 +319,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
@@ -331,128 +364,44 @@ void STM_BOARD_Init(void){
 	clearArray(STM_C.data);
 }
 
-// Description: Generate STM A's request for data from STM B
-// Input: Integer address and size of message. Base to-be used for conversion.
-// Side-Effects: Assuming a message format ########X########. Convert
-//				 integral values to representative strings of specified base.
-//				 Pads the address and size integral values with zeros.
-//				 Two messages are divided by an 'X'.
-// Return: Pointer to the generated request message
-char *formatRequest(long address, long size, int base) {
-	// Convert integral address and size to strings
-	char addressString[8] = "";
-	itoa(address, addressString, base);
-
-	char sizeString[8] = "";
-	itoa(size, sizeString, base);
-
-	char *fullString = (char*)malloc(sizeof(char) * 18);
-	int i, count=0, nonZeroInd = 8-strlen(addressString);
-
-	// Zero padding
-	for (i = 0; i< nonZeroInd; i++) {
-		fullString[i] = '0';
-	}
-	// Write address string
-	for (i = 0; i<strlen(addressString); i++) {
-		fullString[nonZeroInd +i] = addressString[i];
-	}
-
-	// Separation character
-	fullString[8] = 'X';
-
-	// Zero padding
-	nonZeroInd = 17 - strlen(sizeString);
-	for (i = 9; i < nonZeroInd; i++) {
-		fullString[i] = '0';
-	}
-	for (i = 0; i < strlen(sizeString); i++) {
-		fullString[nonZeroInd + i] = sizeString[i];
-	}
-
-	fullString[17] = '\0';
-	return fullString;
-}
-
+// Description: Transmit a string over huart2. If solder bridges SB13 and SB14 are not removed,
+//				this will transmit a message to the STLink chip and can be printed on a serial monitor
+//				directly (such as the Arduino serial monitor). Otherwise, need to connect the huart2 pins to
+// 				an Ardunio an receive the message from that end.
+// Input: message to be transmitted
 void printStringToConsole(char message[]) {
-	if (HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut) == HAL_OK) {
-	}
+	HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut);
 }
 
-// Description: Given a formatted request, parse it and extract integer address and size
-// Side-Effects: Loop through padded zeros in address and size strings to extract address
-//				 and size. Convert to decimal integers based on specified base.
-//				 Store converted values in designated pointers.
-// Input: Pointer to request string. Pointers to address and size integers.
-void parseRequest(long *size, long *address, char *reqString, int base) {
-	int count = 0, i;
-	char *addressString = (char*)malloc(sizeof(char) * 8);
-	char *sizeString = (char*)malloc(sizeof(char) * 8);
-
-	// Skip padding
-	while (*(reqString+count) == '0') {
-		count++;
-	}
-
-	// Parse address
-	i = 0;
-	while (reqString[count] != 'X') {
-		*(addressString+i) = reqString[count];
-		count++;
-		i++;
-	}
-	addressString[i] = '\0';
-	// Skip the X
-	count++;
-
-	// Skip padding
-	while (reqString[count] == '0') {
-		count++;
-	}
-
-	// Parse size
-	i = 0;
-	while (reqString[count] != '\0') {
-		*(sizeString+i) = reqString[count];
-		count++;
-		i++;
-	}
-	sizeString[i] = '\0';
-
-	// Store converted size and address integers
-	*size = strtol(sizeString, NULL, base);
-	*address = strtol(addressString, NULL, base);
-}
-
-// Description: Compare data with B. Send result over to C for reset if needed.
-// Input: base index of memory, number of bytes to be compared
+// Description: Query STM_B for a portion of data. Compare received STM_B data with STM_A's own data.
+//				Send result of comparison over to C for reset if needed.
+// Input: base index (starting index) of the data in memory, number of bytes to be compared
 // Side-Effects: Request data from B. Receive and store B's data. Send result to C. Get power cycled.
-// Assumptions: -Upon booting, A copies its data from C.
-//				-A, B, and C have the exact same data[] array
+// Assumptions: A, B, and C have the exact same data[] array
 void compareData(int baseIndex, int numBytes){
 	printStringToConsole("A: Comparison begun.\n");
 
-	// Generate request string for B
+	// Generate query request for STMB data ---------------------------------------------
 	char addressString[8] = "";
 	itoa(baseIndex, addressString, 10);
 
-	char sizeString[8] = "";
+	char sizeString[24] = "";
 	itoa(numBytes, sizeString, 10);
 
-	char fullString[16] = "";
+	char fullString[32] = "";
 	strcpy(fullString, addressString);
 	strcat(fullString, sizeString);
 
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
 
-	// Send request to B
+	// Send query to B ------------------------------------------------------------------
 	HAL_Delay(500);
 	printStringToConsole(fullString);
 	if (HAL_UART_Transmit(&huart1, (uint8_t*)fullString, strlen(fullString), timeOut) == HAL_OK)
 		printStringToConsole("A: Sent Request\n");
 
 
-	// Wait for data from B
+	// Wait for data from B and store data in temporary buffer when it comes in ---------
 	int received = 0;
 	uint8_t tempBuffer[BUFFER_SIZE];
 	clearArray(tempBuffer);
@@ -465,7 +414,7 @@ void compareData(int baseIndex, int numBytes){
 	printStringToConsole("A: Received B data\n");
 	processData(tempBuffer, baseIndex, numBytes);
 
-	// Compare received B data with A data
+	// Compare received B data with A data -----------------------------------------------
 	int i = 0;
 	int comp_result = 1;
 	for(i=0; i<numBytes; i++){
@@ -473,36 +422,33 @@ void compareData(int baseIndex, int numBytes){
 			comp_result = 0;
 	}
 
-	// General result message for C
+	// General result message for C -------------------------------------------------------
 	char result[2];
 	itoa(comp_result, result, 10);
 	result[1] = '\0';
 
-	// Send result string to C
+	// Send result string to C ------------------------------------------------------------
 	HAL_UART_Transmit(&huart6, (uint8_t*)result, strlen(result), timeOut);
 }
 
-// Receive data from another STM
-// Input: stm id, index to store the data at
-// Side-Effects: Read the UART status register to check if bytes have been received. Try to read numBytes of them.
-// Output: 0 if data is not read successfully. 1 if success.
+// Description: Take received STM_B data from temporary buffer and store in the data array for STM_B on this board.
+// Input: temporary buffer, base index (starting index) of the data in memory, number of bytes to be compared
 void processData(uint8_t tempBuffer[], int baseIndex, int numBytes) {
 	int stmCount = 0;
 
-	// Store address and numbytes
+	// Copy temporary buffer to STM_B.data ------------------------------------------------
 	while (stmCount <= numBytes + 1) {
 		STM_B.data[baseIndex + stmCount] = tempBuffer[stmCount];
 		stmCount++;
 	}
 
-	// Append null char
+	// Append null char -------------------------------------------------------------------
 	STM_B.data[baseIndex + stmCount] = '\0';
 	printStringToConsole("A: Finished comparison.\n");
 }
 
-//clearArray(): This function writes null bytes to the buffer array passed to it
-//Input: buffer that needs to be cleared
-//Output: None
+//Description: This function writes null bytes to the buffer array passed to it
+//Input: pointer to buffer that needs to be cleared
 void clearArray(uint8_t *buffer){
 	for (int i = 0; i < BUFFER_SIZE; i++) {
 		buffer[i] = '\0';
