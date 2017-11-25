@@ -35,6 +35,42 @@
   *
   ******************************************************************************
   */
+
+/**
+ * A UBC Orbit team software production
+ * Project: Trillium Architecture V3
+ *
+ * This software is protected under a Creative Commons
+ * Attribution-ShareAlike 4.0 license, summarized here:
+ * http://creativecommons.org/licenses/by-sa/4.0/
+ *
+ * Description: Software for controlling data redundancy against radiation in the Trillium architecture.
+ *        Code designed for implementation on STM32 F401RE chips. Code used to test comparison protocol on
+ *        STMs under proton beam at TRIUMPH.
+ *
+ *
+ * Original Author: Carter Fang
+ * Date Created: 04/11/2017
+ *
+ *	Modifying Author: Carter Fang, Basil Wong, Andrada Zoltan
+ *	Date Modified: 10/11/2017
+ *	Description: Achieved successful communication with STM_A.
+ *
+ *	Modifying Author: Andrada Zoltan
+ *	Date Modified: 17/11/2017
+ *	Description: Added in timer interrupts for if STM_A latches up and stops communicating for a set amount of time.
+ */
+
+/*
+ * Connecting STM_C:
+ * 		- huart2 receive to STM_A
+ *
+ * 		- PB9 (GPIO_Output) to inverter that goes to power MOSFET used for resetting STM_A and STM_B
+ *
+ * 		- huart1 transmit to Arduino (only used for debugging purposes, not necessary connection)
+ */
+
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
@@ -58,17 +94,9 @@ int counter = 0;
 #define TRUE 1
 #define FALSE 0
 
-//These characters are appended to the beginning and end of each string sent from the host this is just
-//In the below case, this represents the sequence AA0000000000000000YZ
+//Standard definition for data buffer
+#define BUFFER_SIZE 64
 
-//Each board must have a different ID, and will have certain settings based on that ID.
-//The settings are declared in a switch case in the STM_BOARD_Init
-#define STM_ID 3
-
-//Standard definitions for system
-#define BUFFER_SIZE 128 // Expand this maybe?
-#define WAIT_TIME 50
-#define RESET_TIME 500
 //Time used in Serial communication reading and sending
 #define timeOut 0x0FFF
 
@@ -138,7 +166,6 @@ int main(void)
   /* USER CODE END WHILE */
 	  compareData();
   /* USER CODE BEGIN 3 */
-
   }
   /* USER CODE END 3 */
 
@@ -299,7 +326,7 @@ static void MX_GPIO_Init(void)
    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
    /*Configure GPIO pin Output Level */
-   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
 }
 
 /* USER CODE BEGIN 4 */
@@ -314,16 +341,17 @@ void STM_BOARD_Init(void){
 	clearArray(STM_C.data);
 }
 
+// Description: Transmit a string over huart2. If solder bridges SB13 and SB14 are not removed,
+//				this will transmit a message to the STLink chip and can be printed on a serial monitor
+//				directly (such as the Arduino serial monitor). Otherwise, need to connect the huart2 pins to
+// 				an Ardunio an receive the message from that end.
+// Input: message to be transmitted
 void printStringToConsole(char message[]) {
-	if (HAL_UART_Transmit(&huart1, (uint8_t*)message, strlen(message), timeOut) == HAL_OK) {
-	}
+	HAL_UART_Transmit(&huart1, (uint8_t*)message, strlen(message), timeOut);
 }
 
-// Receive result from A. Initiate power reset of A and B depending on result. Wait for reboot. Send memory to A and B.
-// Input: None
-// Output: None
-// Assumptions: -Upon booting, A and B request data from C.
-//				-A, B, and C have the exact same data[] array
+// Description: Receive result of comparison from A. Initiate power reset of A and B depending on result.
+// Assumptions: A, B, and C have the exact same data[] array
 void compareData(){
 	int resultBytes = 1;
 	uint8_t tempBuffer[BUFFER_SIZE];
@@ -331,36 +359,32 @@ void compareData(){
 	char result_s[2];
 	result_s[1] = '\0';
 
-	// Wait to receive result of comparison from A --------------------------
+	// Wait to receive result of comparison from A ------------------------------------------------
 	int received = 0;
 	while(received == 0){
 		if(HAL_UART_Receive(&huart2, tempBuffer, resultBytes, timeOut) == HAL_OK)
 			received = 1;
 	}
 
-	// Parse result message ---------------------------
+	// Parse result message -----------------------------------------------------------------------
 	result_s[0] = tempBuffer[0];
-	// Convert from bytes to int
-	result = atoi(result_s);
+	result = atoi(result_s);	// Convert from bytes to int
 
-	// Execute action based on result received --------------------
+	// Execute action based on result received ----------------------------------------------------
 	if(result == TRUE){
 		printStringToConsole("C: A and B match. No reset needed.\n");
 		counter = 0;
 	}
-	else{
-		/* RESET CODE ---------------------- */
+	else if (result == FALSE){
+		// Reset Code -----------------------------------------------------------------------------
 		printStringToConsole("C: A and B disagree. Reset.\n");
 		counter = 0;
-		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9); // Change up GPIOA and GPIO_PIN_3 here
-		HAL_Delay(500); // Delay
-		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
 	}
 }
 
-//clearArray(): This function writes null bytes to the buffer array passed to it
-//Input: buffer that needs to be cleared
-//Output: None
+//Description: This function writes null bytes to the buffer array passed to it
+//Input: pointer to buffer that needs to be cleared
 void clearArray(uint8_t *buffer){
 	for (int i = 0; i < BUFFER_SIZE; i++) {
 		buffer[i] = '\0';

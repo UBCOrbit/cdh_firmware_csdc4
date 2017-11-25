@@ -50,15 +50,20 @@ extern int counter;
 */
 void SysTick_Handler(void)
 {
+  //Timer interrupt triggered every 1ms, counter is incremented each time
   counter++;
 
+  //500ms after a reset of STM_A and STM_B occurs, power them back on
   if(counter == 500)
-	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
   /* USER CODE BEGIN SysTick_IRQn 0 */
+
+  //If 5s occurs before counter is reset (counter reset means that communication with STM_A
+  //occurred), then that means STM_A encountered a latch-up.
   if (counter == 5000) {
 	  counter = 0;
 	  printStringToConsole("C: STMA Timeout\n");
-	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET); //STM_A and STM_B are reset
   }
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
