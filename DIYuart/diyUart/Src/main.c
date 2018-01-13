@@ -9,7 +9,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * COPYRIGHT(c) 2017 STMicroelectronics
+  * COPYRIGHT(c) 2018 STMicroelectronics
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -38,7 +38,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
-#include <stdlib.h>
 
 /* USER CODE BEGIN Includes */
 
@@ -54,7 +53,6 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-void send(unsigned char data, int time);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -100,8 +98,11 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
-	send(data, 10);
-	HAL_Delay(3000);
+	  HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
+	  send(data,10);
+	  HAL_Delay(1000);
+	  HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
+	  HAL_Delay(2000);
   /* USER CODE BEGIN 3 */
 
   }
@@ -214,22 +215,22 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void send(unsigned char data, int time) {
 	int j;
-
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
+	//
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
 	HAL_Delay(10);
 
 	for (j=0; j<8; j++) {
 		char* shifted = (char*)(data>>j);
 		if (shifted[0] == 1)
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
 
 		else
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
 
 		HAL_Delay(10);
 	}
 
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
 }
 /* USER CODE END 4 */
 
@@ -247,11 +248,6 @@ void _Error_Handler(char * file, int line)
   }
   /* USER CODE END Error_Handler_Debug */ 
 }
-
-
-
-
-
 
 #ifdef USE_FULL_ASSERT
 

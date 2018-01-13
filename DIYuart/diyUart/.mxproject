@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=C:/Users/Andrada Zoltan/Desktop/UBCOrbit/DIYuart/diyUart/Inc
+HeaderPath=C:/Users/wongb/Documents/GitHub/CDH/DIYuart/diyUart/Inc
 HeaderFiles=stm32f4xx_it.h;stm32f4xx_hal_conf.h;main.h;
-SourcePath=C:/Users/Andrada Zoltan/Desktop/UBCOrbit/DIYuart/diyUart/Src
+SourcePath=C:/Users/wongb/Documents/GitHub/CDH/DIYuart/diyUart/Src
 SourceFiles=stm32f4xx_it.h;stm32f4xx_hal_conf.h;main.h;stm32f4xx_it.c;stm32f4xx_hal_msp.c;main.c;
 
 [PreviousLibFiles]

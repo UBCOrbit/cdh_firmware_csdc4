@@ -77,14 +77,17 @@ void EXTI3_IRQHandler(void) {
 
 	printStringToConsole("Activated\n");
 	HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
+	HAL_Delay(1000);
+	HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
 	unsigned char data;
 		/* USER CODE BEGIN EXTI3_IRQn 0 */
 		if (HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_3)) {
 			data = receive();
 			if(data == 10101010) {
-				HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
-				HAL_Delay(1000);
-				HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
+//				HAL_Delay(1000);
+//				HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
+//				HAL_Delay(1000);
+//				HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
 			}
 		}
   /* USER CODE END EXTI3_IRQn 0 */
