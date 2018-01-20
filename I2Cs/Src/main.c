@@ -48,7 +48,9 @@ I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+#define MASTER_ADDRESS 0x0
 
+uint16_t data;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -90,17 +92,42 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+
   MX_I2C1_Init();
 
   /* USER CODE BEGIN 2 */
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-  /* USER CODE END WHILE */
+	  if(HAL_I2C_Slave_Receive(&hi2c1, (uint8_t*)&data, 1, 50) == HAL_OK) {
+		 if(data == 1) {
+		  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET);
+		  HAL_Delay(1000);
+		  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);
+		 }
+	  }
+
+
+//	  //Slave wait to receive request from master
+//	  while(HAL_I2C_Slave_Receive_IT(&hi2c1, (uint8_t*)&TRANSFER_REQUEST, 1) != HAL_OK) {
+//	  }
+//
+//	  //Wait for non-busy status
+//	  while(HAL_I2C_GetState(&hi2c1) != HAL_I2C_STATE_READY);
+//	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET);
+//	  //Receive data from master
+//	  if(TRANSFER_REQUEST == MASTER_REQUEST) {
+//		  while(HAL_I2C_Slave_Receive_IT(&hi2c1, (uint8_t*)&RXData, 2) != HAL_OK);
+//
+//		  if(RXData == 1) {
+//			  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET);
+//			  HAL_Delay(500);
+//			  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);
+//		  }
+//	  }
 
   /* USER CODE BEGIN 3 */
 
@@ -172,10 +199,9 @@ static void MX_I2C1_Init(void)
   hi2c1.Instance = I2C1;
   hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.OwnAddress1 = 0x03;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
   hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
   hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
   if (HAL_I2C_Init(&hi2c1) != HAL_OK)
@@ -242,7 +268,7 @@ static void MX_GPIO_Init(void)
   */
 void _Error_Handler(char * file, int line)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
+
   /* User can add his own implementation to report the HAL error return state */
   while(1) 
   {
