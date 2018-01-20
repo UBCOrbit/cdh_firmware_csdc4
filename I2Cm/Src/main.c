@@ -48,7 +48,9 @@ I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+#define SLAVE_ADDRESS 0x03
 
+uint16_t data;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -93,17 +95,33 @@ int main(void)
   MX_I2C1_Init();
 
   /* USER CODE BEGIN 2 */
-
+  data = 1;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-  /* USER CODE END WHILE */
+	  while(HAL_I2C_Master_Transmit(&hi2c1, (uint16_t)SLAVE_ADDRESS, (uint8_t*)&data, 1, 50) != HAL_OK);
+	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET);
+	  HAL_Delay(500);
+	  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);
+//	  //Master sends a write request to slave
+//	  while(HAL_I2C_Master_Transmit_IT(&hi2c1, (uint16_t)SLAVE_ADDRESS, (uint8_t*)&TRANSFER_REQUEST, 1) != HAL_OK) {
+//		  if(HAL_I2C_GetError(&hi2c1) != HAL_I2C_ERROR_AF)
+//			  Error_Handler();
+//	  }
+//
+//	  //Wait for state of peripheral
+//	  while(HAL_I2C_GetState(&hi2c1) != HAL_I2C_STATE_READY);
+//
+//	  //Master sends amount of data to be written
+//	  while(HAL_I2C_Master_Transmit_IT(&hi2c1, (uint16_t)SLAVE_ADDRESS, (uint8_t*)&TXData, 2) != HAL_OK) {
+//		  if(HAL_I2C_GetError(&hi2c1) != HAL_I2C_ERROR_AF)
+//		  			  Error_Handler();
+//	  }
 
-  /* USER CODE BEGIN 3 */
-
+	  HAL_Delay(5000);
   }
   /* USER CODE END 3 */
 
@@ -175,7 +193,6 @@ static void MX_I2C1_Init(void)
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
   hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
   hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
   if (HAL_I2C_Init(&hi2c1) != HAL_OK)
@@ -243,6 +260,9 @@ static void MX_GPIO_Init(void)
 void _Error_Handler(char * file, int line)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
+	HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET);
+	HAL_Delay(500);
+	HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);
   /* User can add his own implementation to report the HAL error return state */
   while(1) 
   {
