@@ -38,10 +38,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
+#include <stdlib.h>
+#include <string.h>
 
 /* USER CODE BEGIN Includes */
 #define WAIT_TIME 500
-#define payload_pin 9;
+#define payload_pin 9
 
 /* USER CODE END Includes */
 
@@ -73,39 +75,67 @@ uint8_t *GPIO_UART_Receive(int pin);
 
 /* Command Queue */
 typedef struct Task {
-	  uint8_t command_code;
-	  uint8_t data_len[4];
+	  uint8_t command_code; // Photo, Process, Get Data, etc
+	  uint8_t data_len[4]; // Command-specific parameter
 	  uint8_t *data;
 	  struct Task *next;
-} Task;
+} task;
+
+task *createTask(uint8_t command_code, uint8_t *data_len, uint8_t *data){
+/* Generate new task */
+	task *newTask = (task*)malloc(sizeof(task)); // Command type and parameter
+	newTask->command_code = command_code;
+	memcpy(newTask->data_len, data_len, sizeof(*data_len));
+
+	int dataLength = sizeof(data); // Data
+	newTask->data = (uint8_t*)malloc(dataLength);
+	memcpy(newTask->data, data, dataLength);
+
+	newTask->next = NULL;
+
+	return newTask;
+}
 
 typedef struct Queue {
-	  Task *front;
-	  Task *back;
+	  task *front;
+	  task *back;
 	  uint8_t numTasks;
-} Queue;
+} queue;
 
-void initQueue(Queue *que){
+void initQueue(queue *que){
   que->numTasks = 0;
   que->front = NULL;
   que->back = NULL;
 }
 
-Task *peekQueue(Queue *que){
+task *peekQueue(queue *que){
 	return que->front;
 }
 
-uint8_t enqueue(uint8_t command_code, uint8_t data_len, uint8_t *data){
-	/*
-	 * Use data from ground station to generate a task. Add it to the queue.
-	 */
-	return 0;
+int emptyQueue(queue *que){
+	if(que->numTasks == 0)
+		return 1;
+	else
+		return 0;
 }
 
-void dequeue(Queue *que){
-	Task *temp = que->front;
+void enqueue(task *newTask, queue *que){
+	if(emptyQueue(que)){
+		que->front = newTask;
+		que->back = newTask;
+	}
+	else{
+		que->back = newTask;
+	}
+
+	que->numTasks++;
+}
+
+void dequeue(queue *que){
+	task *temp = que->front;
 	que->front = que->front->next;
 	free(temp);
+	que->numTasks--;
 }
 
 /* USER CODE END 0 */
@@ -140,61 +170,57 @@ int main(void)
   MX_USART6_UART_Init();
 
   /* Allocate and Initialize Queue */
-  Queue *jobs = (Queue*)malloc(sizeof(Queue));
+  queue *jobs = (queue*)malloc(sizeof(queue));
   initQueue(jobs);
+
+  queue *errJobs = (queue*)malloc(sizeof(queue));
+  initQueue(errJobs);
+
+  /* Define Error-Codes */
+  uint8_t errCodes[12], i;
+  for(i=0; i<12; i++){
+	  errCodes[i] = 129 + i;
+  }
+
+  uint8_t succCodes[7];
+  for(i=0; i<7; i++){
+	  succCodes[i] = 65 + i;
+  }
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
 	  /* Send highest priority job to payload -------------*/
-	  Task currJob = peekQueue(jobs);
+	  task *currJob = peekQueue(jobs);
 	  GPIO_UART_Transmit(currJob, sizeof(currJob));
 
 	  /* Wait for a response -----------*/
-	  uint8_t *reply;
+	  uint8_t reply; // 1-byte response code (Success, Error)
+	  uint8_t success_code;
 	  reply = GPIO_UART_Receive(payload_pin);
 
-	  While(reply == 0){
+	  while(reply == 0){
 		  reply = GPIO_UART_Receive(payload_pin);
 		  HAL_Delay(WAIT_TIME);
 	  }
 
-	  /* Handle response based on command type */
-	  switch(currJob->command_code){
-	  	  // Photo
-		  case (uint8_t)1:
-			  break;
+	  /* Determine success code for given command-type */
+	  success_code = succCodes[currJob->command_code - 1];
 
-		  // Process
-		  case (uint8_t)2:
-			  break;
-
-		  // Get Data
-		  case (uint8_t)3:
-			  break;
-
-		  // Delete Data
-		  case (uint8_t)4:
-			  break;
-
-		  // Upload inference model
-		  case (uint8_t)5:
-			  break;
-
-		  // Delete Inference model
-		  case (uint8_t)6:
-			  break;
-
-		  // Status Inquery
-		  case (uint8_t)7:
-			  break;
-
-		  // Power Off
-		  case (uint8_t)8:
-			  break;
+	  if(reply == success_code){
+		  // Receive n-bytes depending on job-type completed
+		  continue;
 	  }
+	  else{ // Remove job from queue, add it to error queue
+		  enqueue(currJob, errJobs);
+		  dequeue(jobs);
+	  }
+
+	  /* Interpret new ground-station jobs */
   }
+
+
   /* USER CODE END 3 */
 
 }
