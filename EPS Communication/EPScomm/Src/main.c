@@ -50,6 +50,25 @@ I2C_HandleTypeDef hi2c1;
 /* Private variables ---------------------------------------------------------*/
 #define EPS_ADDRESS 0x2B
 #define BAT_ADDRESS 0x2A
+
+//Battery Telemetry Commands
+#define B_OUTVOLTAGE 0xE280
+#define B_CURRMAGNITUDE 0xE284
+#define B_CURRDIRECTION 0xE28E
+#define B_MOTHERTEMP 0xE308
+#define B_CURRENT5V 0xE214
+#define B_VOLTAGE5V 0xE210
+#define B_CURRENT3V 0xE204
+#define B_VOLTAGE3V	0xE200
+#define B_DAUGHT1TEMP 0xE398
+#define B_DAUGHT1HEATER 0xE39F
+#define B_DAUGHT2TEMP 0xE3A8
+#define B_DAUGHT2HEATER 0xE3AF
+#define B_DAUGHT3TEMP 0xE3B8
+#define B_DAUGHT3HEATER 0xE3BF
+
+//EPS Module Telemetry Commands
+#define
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
