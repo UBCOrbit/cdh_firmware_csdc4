@@ -68,7 +68,11 @@ I2C_HandleTypeDef hi2c1;
 #define B_DAUGHT3HEATER 0xE3BF
 
 //EPS Module Telemetry Commands
+<<<<<<< HEAD
 
+=======
+//#define
+>>>>>>> d0ee03d6f51e0aecb19f3d1aeb65207377d13915
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/

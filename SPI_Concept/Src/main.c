@@ -38,6 +38,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
+#include <string.h>
 
 /* USER CODE BEGIN Includes */
 
@@ -79,7 +80,7 @@ static void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void printStringToConsole(uint16_t message[]);
+void printStringToConsole(char message[]);
 
 /* USER CODE END PFP */
 
@@ -117,8 +118,8 @@ int main(void)
   MX_USART2_UART_Init();
 
   /* USER CODE BEGIN 2 */
-  uint16_t DataToSend[10]={5};
-  uint16_t DataToReceive[10]={6};
+  char DataToSend[] = "1";
+  char DataToReceive[] = "0";
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -129,7 +130,7 @@ int main(void)
   /* USER CODE END WHILE */
   /* USER CODE BEGIN 3 */
 	  HAL_SPI_Transmit(&hspi1,(uint8_t*)(DataToSend), 2,timeOut);
-//	  HAL_SPI_Receive(&hspi2,(uint8_t*)(DataToReceive), 2,timeOut);
+	//  HAL_SPI_Receive(&hspi2,(uint8_t*)(DataToReceive), 2,timeOut);
 	  printStringToConsole(DataToReceive);
   }
   /* USER CODE END 3 */
@@ -272,7 +273,7 @@ static void MX_GPIO_Init(void)
 //				directly (such as the Arduino serial monitor). Otherwise, need to connect the huart2 pins to
 // 				an Ardunio an receive the message from that end.
 // Input: message to be transmitted
-void printStringToConsole(uint16_t message[]) {
+void printStringToConsole(char message[]) {
 	HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut);
 }
 
