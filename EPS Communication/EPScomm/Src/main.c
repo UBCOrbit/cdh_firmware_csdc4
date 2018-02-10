@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * File Name          : main.c
+ * File Name          : main.c
   * Description        : Main program body
   ******************************************************************************
   ** This notice applies to any and all portions of this file
@@ -68,7 +68,7 @@ I2C_HandleTypeDef hi2c1;
 #define B_DAUGHT3HEATER 0xE3BF
 
 //EPS Module Telemetry Commands
-#define
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,6 +78,7 @@ static void MX_I2C1_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+void getStatus();
 void getEPSTelemetry (uint8_t received[], int data[]);
 void getBatteryTelemetry (uint8_t received[], int data[]);
 void sendCommand(uint8_t address, uint8_t received[], uint8_t cmd, int data0, int numBytes, int delay);
@@ -243,7 +244,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InxitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
@@ -254,6 +255,20 @@ static void MX_GPIO_Init(void)
 
 }
 
+//  combination of
+//	void getStatusBytes(byte address, byte data[])
+//	void parseStatusBytes(byte data[])
+void getStatus(uint8_t address,uint8_t data[]) {
+
+	while(HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)&data, (uint16_t) sizeof(data[]), (uint32_t) 50) != HAL_OK);
+
+	sleep(2);
+
+	while(HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, (uint8_t*)&data, (uint16_t) sizeof(data[]), (uint32_t) 50) != HAL_OK);
+
+}
+
+
 /*
  * Sends a request to the EPS module for the required telemetry that is needed.
  *
@@ -261,6 +276,7 @@ static void MX_GPIO_Init(void)
  * @param data[] - additional parameter commands sent by the master device
  */
 void getEPSTelemetry (uint8_t received[], int data[]) {
+
 
 }
 
@@ -286,6 +302,9 @@ void getBatteryTelemetry (uint8_t received[], int data[]){
  */
 void sendCommand(uint8_t address, uint8_t received[], uint8_t cmd, int data0, int numBytes, int delay){
 
+
+
+
 }
 
 /**
@@ -293,6 +312,8 @@ void sendCommand(uint8_t address, uint8_t received[], uint8_t cmd, int data0, in
   * @param  None
   * @retval None
   */
+
+
 void _Error_Handler(char * file, int line)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
