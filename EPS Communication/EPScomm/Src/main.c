@@ -68,11 +68,8 @@ I2C_HandleTypeDef hi2c1;
 #define B_DAUGHT3HEATER 0xE3BF
 
 //EPS Module Telemetry Commands
-<<<<<<< HEAD
 
-=======
-//#define
->>>>>>> d0ee03d6f51e0aecb19f3d1aeb65207377d13915
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -82,10 +79,10 @@ static void MX_I2C1_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void getStatus();
+void getStatus(uint8_t address,uint8_t command,uint8_t data_sent,uint8_t data_received, int size);
 void getEPSTelemetry (uint8_t received[], int data[]);
 void getBatteryTelemetry (uint8_t received[], int data[]);
-void sendCommand(uint8_t address, uint8_t received[], uint8_t cmd, int data0, int numBytes, int delay);
+void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], int bytes_returned, int delay);
 void EPSErrorHandler (uint8_t received[]);
 /* USER CODE END PFP */
 
@@ -248,7 +245,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
-  HAL_GPIO_Init(GPIOA, &GPIO_InxitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
@@ -259,57 +256,58 @@ static void MX_GPIO_Init(void)
 
 }
 
-//  combination of
-//	void getStatusBytes(byte address, byte data[])
-//	void parseStatusBytes(byte data[])
-void getStatus(uint8_t address,uint8_t data[]) {
+/*
+ * 	Purpose:
+ * 	This function will get the status of either the EPS or Battery module
+ *
+ * 	Parameters:
+ * 	@address - the target I2C Address. Either EPS or Batt in this case
+ * 	@command - the command telemetry to be sent
+ * 	@data_sent - the data telemetry to be sent
+ * 	@data_received - 8 bit array to hold the data returned
+ * 	@size - the number of bytes to be returned
+ *
+ */
 
-	while(HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)&data, (uint16_t) sizeof(data[]), (uint32_t) 50) != HAL_OK);
+void getStatus(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], int size) {
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)command, (uint16_t) 1, (uint32_t) 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)data_sent, (uint16_t) 1, (uint32_t) 50) != HAL_OK );
 
-	sleep(2);
 
-	while(HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, (uint8_t*)&data, (uint16_t) sizeof(data[]), (uint32_t) 50) != HAL_OK);
+	HAL_Delay(1);
+
+	while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, (uint8_t*)data_received, (uint16_t) size, (uint32_t) 50) != HAL_OK);
 
 }
+
+
 
 
 /*
- * Sends a request to the EPS module for the required telemetry that is needed.
+ * 	Purpose:
+ *	This function will send a command to either the EPS or Battery module to request data
  *
- * @param received[] - array containing data returned from EPS module
- * @param data[] - additional parameter commands sent by the master device
+ *
+ *	Parameters:
+ *	address : the target address (either EPS or Battery)
+ *	command : the command byte to be sent
+ *	data_sent : the data_sent byte to be sent
+ *	data_received[] : array to hold received bytes
+ *	delay: the delay required for the command
+ *
  */
-void getEPSTelemetry (uint8_t received[], int data[]) {
+void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], int bytes_returned, int delay){
 
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)command, (uint16_t) 1, (uint32_t) 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)data_sent, (uint16_t) 1, (uint32_t) 50) != HAL_OK );
+
+	HAL_Delay(delay);
+
+	while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, (uint8_t*)data_received, (uint16_t) bytes_returned, (uint32_t) 50) != HAL_OK);
 
 }
 
-/*
- * Sends a request to the battery for the required telemetry that is needed.
- *
- * @param receive[] - array containing data returned from EPS module
- * @param data[] - additional parameter commands sent by master device
- */
-void getBatteryTelemetry (uint8_t received[], int data[]){
 
-}
-
-/*
- * Sends a miscellaneous request to either the EPS module or the battery.
- *
- * @param address - address of either the EPS module or the battery
- * @param received[] - array containing data returned from device
- * @param cmd - specifies the command
- * @param data0 - corresponds to additional parameters to the command (often just 0x00)
- * @param numBytes - number of bytes to request from the module
- * @param delay - amount of time required before 2 data bytes can be requested (in ms)
- */
-void sendCommand(uint8_t address, uint8_t received[], uint8_t cmd, int data0, int numBytes, int delay){
-
-
-
-
-}
 
 /**
   * @brief  This function is executed in case of error occurrence.
