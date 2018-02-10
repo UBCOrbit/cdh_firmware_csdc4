@@ -75,23 +75,16 @@ void SysTick_Handler(void)
 void EXTI3_IRQHandler(void) {
 	for(int i=0; i<1000000; i++);
 
-	printStringToConsole("Activated\n");
-	HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
-	unsigned char data;
-		/* USER CODE BEGIN EXTI3_IRQn 0 */
-		if (HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_3)) {
-			data = receive();
-			if(data == 10101010) {
-				HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
-				HAL_Delay(1000);
-				HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
-			}
-		}
-  /* USER CODE END EXTI3_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
-  /* USER CODE BEGIN EXTI3_IRQn 1 */
+	if (HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_3)) {
+		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+		receive();
+	}
 
-  /* USER CODE END EXTI3_IRQn 1 */
+	/* USER CODE END EXTI3_IRQn 0 */
+	HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
+	/* USER CODE BEGIN EXTI3_IRQn 1 */
+
+    /* USER CODE END EXTI3_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
