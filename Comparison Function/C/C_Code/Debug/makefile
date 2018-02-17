@@ -28,13 +28,13 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: C_Code.elf
+all: C_SPI.elf
 
 # Tool invocations
-C_Code.elf: $(OBJS) $(USER_OBJS) ../STM32F401RETx_FLASH.ld
+C_SPI.elf: $(OBJS) $(USER_OBJS) ../STM32F401RETx_FLASH.ld
 	@echo 'Building target: $@'
 	@echo 'Invoking: MCU GCC Linker'
-	arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -specs=nosys.specs -specs=nano.specs -T"../STM32F401RETx_FLASH.ld" -Wl,-Map=output.map -Wl,--gc-sections -o "C_Code.elf" @"objects.list" $(USER_OBJS) $(LIBS) -lm
+	arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -specs=nosys.specs -specs=nano.specs -T"../STM32F401RETx_FLASH.ld" -Wl,-Map=output.map -Wl,--gc-sections -o "C_SPI.elf" @"objects.list" $(USER_OBJS) $(LIBS) -lm
 	@echo 'Finished building target: $@'
 	@echo ' '
 	$(MAKE) --no-print-directory post-build
@@ -46,8 +46,8 @@ clean:
 
 post-build:
 	-@echo 'Generating binary and Printing size information:'
-	arm-none-eabi-objcopy -O binary "C_Code.elf" "C_Code.bin"
-	arm-none-eabi-size "C_Code.elf"
+	arm-none-eabi-objcopy -O binary "C_SPI.elf" "C_SPI.bin"
+	arm-none-eabi-size "C_SPI.elf"
 	-@echo ' '
 
 .PHONY: all clean dependents
