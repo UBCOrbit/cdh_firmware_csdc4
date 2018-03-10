@@ -38,6 +38,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
+//include uart
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -51,150 +52,151 @@ I2C_HandleTypeDef hi2c1;
 #define BAT_ADDRESS 0x2A
 
 #define DEFAULT_DATA 0x00
+
 //EPS Module Telemetry Commands
 
 #define EPS_BOARD_STATUS_COMMAND 0x01
 #define EPS_ERROR_COMMAND 0x03
-#define EPS_GET_VERSION_COMMAND 0X04
-#define EPS_GET_CHECKSUM_COMMAND 0X05
-#define EPS_GET_TELEMETRY 0X10
-#define EPS_GET_COMMS_WATCHDOG 0X20
-#define EPS_SET_COMMS_WATCHDOG 0X21
-#define EPS_RESET_COMMS_WATCHDOG 0X22
-#define EPS_GET_BROWNOUT_RESETS 0X31
-#define EPS_GET_AUTO_SOFTWARE_RESETS 0X32
-#define EPS_GET_MANUAL_RESETS 0X33
-#define EPS_GET_COMMS_WATCHDOG_RESETS 0X34
-#define EPS_ALLPDM_ON 0X40
-#define EPS_ALLPDM_OFF 0X41
-#define EPS_GET_ACTUAL_STATE_ALLPDM 0X42
-#define EPS_GET_EXPECTED_STATE_ALLPDM 0X43
-#define GET_INITIAL_STATE_ALLPDM 0X44
-#define SET_ALLPDM_TO_INITIAL_STATE 0x45
-#define SET_PDM-N_ON 0X50
-#define SET_PDM-N_OFF 0X51
-#define SET_PDM-N_INITIAL_STATE_ON 0X52
-#define SET_PDM-N_INITIAL_STATE_OFF 0X53
-#define GET_PDM-N_ACTUAL_STATUS 0X54
-#define SET_PDM-N_TIMER_LIMIT 0X60
-#define GET_PDM-N_TIMER_LIMIT 0X61
-#define GET_PDM-N_CURRENT_TIMER_LIMIT 0X62
-#define PCM_RESET_COMMAND 0X70
-#define MANUAL_RESET_COMMAND
+#define EPS_GET_VERSION_COMMAND 0x04
+#define EPS_GET_CHECKSUM_COMMAND 0x05
+#define EPS_GET_TELEMETRY 0x10
+#define EPS_GET_COMMS_WATCHDOG 0x20
+#define EPS_SET_COMMS_WATCHDOG 0x21
+#define EPS_RESET_COMMS_WATCHDOG 0x22
+#define EPS_GET_BROWNOUT_RESETS 0x31
+#define EPS_GET_AUTO_SOFTWARE_RESETS 0x32
+#define EPS_GET_MANUAL_RESETS 0x33
+#define EPS_GET_COMMS_WATCHDOG_RESETS 0x34
+#define EPS_ALLPDM_ON 0x40
+#define EPS_ALLPDM_OFF 0x41
+#define EPS_GET_ACTUAL_STATE_ALLPDM 0x42
+#define EPS_GET_EXPECTED_STATE_ALLPDM 0x43
+#define EPS_GET_INITIAL_STATE_ALLPDM 0x44
+#define EPS_SET_ALLPDM_TO_INITIAL_STATE 0x45
+#define EPS_SET_PDMN_ON 0x50
+#define EPS_SET_PDMN_OFF 0x51
+#define EPS_SET_PDMN_INITIAL_STATE_ON 0x52
+#define EPS_SET_PDMN_INITIAL_STATE_OFF 0x53
+#define EPS_GET_PDMN_ACTUAL_STATUS 0x54
+#define EPS_SET_PDMN_TIMER_LIMIT 0x60
+#define EPS_GET_PDMN_TIMER_LIMIT 0x61
+#define EPS_GET_PDMN_CURRENT_TIMER_LIMIT 0x62
+#define EPS_PCM_RESET_COMMAND 0x70
+#define EPS_MANUAL_RESET_COMMAND 0x80
 
 //EPS get telemetry data values
-#define IIDIODE_OUT_DATA1 E2
-#define IIDIODE_OUT_DATA0 84
-#define VIDIODE_OUT_DATA1 E2
-#define VIDIODE_OUT_DATA0 80
-#define I3V3_DRW_DATA1 E2
-#define I3V3_DRW_DATA0 05
-#define I5V_DRW_DATA1 E2
-#define I5V_DRW_DATA0 15
-#define IPCM12V_DATA1 E2
-#define IPCM12V_DATA0 34
-#define VPCM12V_DATA1 E2
-#define VPCM12V_DATA0 30
-#define IPCMBATV_DATA1 E2
-#define IPCMBATV_DATA0 24
-#define VPCMBATV_DATA1 E2
-#define VPCMBATV_DATA0 20
-#define IPCM5V_DATA1 E2
-#define IPCM5V_DATA0 14
-#define VPCM5V_DATA1 E2
-#define VPCM5V_DATA0 10
-#define IPCM3V3_DATA1 E2
-#define IPCM3V3_DATA0 04
-#define VPCM3V3_DATA1 E2
-#define VPCM3V3_DATA0 00
+#define IIDIODE_OUT_DATA1 0xE2
+#define IIDIODE_OUT_DATA0 0x84
+#define VIDIODE_OUT_DATA1 0xE2
+#define VIDIODE_OUT_DATA0 0x80
+#define I3V3_DRW_DATA1 0xE2
+#define I3V3_DRW_DATA0 0x05
+#define I5V_DRW_DATA1 0xE2
+#define I5V_DRW_DATA0 0x15
+#define IPCM12V_DATA1 0xE2
+#define IPCM12V_DATA0 0x34
+#define VPCM12V_DATA1 0xE2
+#define VPCM12V_DATA0 0x30
+#define IPCMBATV_DATA1 0xE2
+#define IPCMBATV_DATA0 0x24
+#define VPCMBATV_DATA1 0xE2
+#define VPCMBATV_DATA0 0x20
+#define IPCM5V_DATA1 0xE2
+#define IPCM5V_DATA0 0x14
+#define VPCM5V_DATA1 0xE2
+#define VPCM5V_DATA0 0x10
+#define IPCM3V3_DATA1 0xE2
+#define IPCM3V3_DATA0 0x04
+#define VPCM3V3_DATA1 0xE2
+#define VPCM3V3_DATA0 0x00
 
-#define VSW1_DATA1 E4
-#define VSW1_DATA0 10
-#define ISW1_DATA1 E4
-#define ISW1_DATA0 14
-#define VSW2_DATA1 E4
-#define VSW2_DATA0 20
-#define ISW2_DATA1 E4
-#define ISW2_DATA0 24
-#define VSW3_DATA1 E4
-#define VSW3_DATA0 30
-#define ISW3_DATA1 E4
-#define ISW3_DATA0 34
-#define VSW4_DATA1 E4
-#define VSW4_DATA0 40
-#define ISW4_DATA1 E4
-#define ISW4_DATA0 44
-#define VSW5_DATA1 E4
-#define VSW5_DATA0 50
-#define ISW5_DATA1 E4
-#define ISW5_DATA0 54
-#define VSW6_DATA1 E4
-#define VSW6_DATA0 60
-#define ISW6_DATA1 E4
-#define ISW6_DATA0 64
-#define VSW7_DATA1 E4
-#define VSW7_DATA0 70
-#define ISW7_DATA1 E4
-#define ISW7_DATA0 74
-#define VSW8_DATA1 E4
-#define VSW8_DATA0 80
-#define ISW8_DATA1 E4
-#define ISW8_DATA0 84
-#define VSW9_DATA1 E4
-#define VSW9_DATA0 90
-#define ISW9_DATA1 E4
-#define ISW9_DATA0 94
-#define VSW10_DATA1 E4
-#define VSW10_DATA0 A0
-#define ISW10_DATA1 E4
-#define ISW10_DATA0 A4
-#define TBRD_DATA1 E3
-#define TBRD_DATA0 08
+#define VSW1_DATA1 0xE4
+#define VSW1_DATA0 0x10
+#define ISW1_DATA1 0xE4
+#define ISW1_DATA0 0x14
+#define VSW2_DATA1 0xE4
+#define VSW2_DATA0 0x20
+#define ISW2_DATA1 0xE4
+#define ISW2_DATA0 0x24
+#define VSW3_DATA1 0xE4
+#define VSW3_DATA0 0x30
+#define ISW3_DATA1 0xE4
+#define ISW3_DATA0 0x34
+#define VSW4_DATA1 0xE4
+#define VSW4_DATA0 0x40
+#define ISW4_DATA1 0xE4
+#define ISW4_DATA0 0x44
+#define VSW5_DATA1 0xE4
+#define VSW5_DATA0 0x50
+#define ISW5_DATA1 0xE4
+#define ISW5_DATA0 0x54
+#define VSW6_DATA1 0xE4
+#define VSW6_DATA0 0x60
+#define ISW6_DATA1 0xE4
+#define ISW6_DATA0 0x64
+#define VSW7_DATA1 0xE4
+#define VSW7_DATA0 0x70
+#define ISW7_DATA1 0xE4
+#define ISW7_DATA0 0x74
+#define VSW8_DATA1 0xE4
+#define VSW8_DATA0 0x80
+#define ISW8_DATA1 0xE4
+#define ISW8_DATA0 0x84
+#define VSW9_DATA1 0xE4
+#define VSW9_DATA0 0x90
+#define ISW9_DATA1 0xE4
+#define ISW9_DATA0 0x94
+#define VSW10_DATA1 0xE4
+#define VSW10_DATA0 0xA0
+#define ISW10_DATA1 0xE4
+#define ISW10_DATA0 0xA4
+#define TBRD_DATA1 0xE3
+#define TBRD_DATA0 0x08
 
-#define VBCR1_DATA1 E1
-#define VBCR1_DATA0 10
-#define IBCR1A_DATA1 E1
-#define IBCR1A_DATA0 14
-#define IBCR1B_DATA1 E1
-#define IBCR1B_DATA0 15
-#define TBCR1A_DATA1 E1
-#define TBCR1A_DATA0 18
-#define TBCR1B_DATA1 E1
-#define TBCR1B_DATA0 19
-#define SDBCR1A_DATA1 E1
-#define SDBCR1A_DATA0 1C
-#define SDBCR1B_DATA1 E1
-#define SDBCR1B_DATA0 1D
+#define VBCR1_DATA1 0xE1
+#define VBCR1_DATA0 0x10
+#define IBCR1A_DATA1 0xE1
+#define IBCR1A_DATA0 0x14
+#define IBCR1B_DATA1 0xE1
+#define IBCR1B_DATA0 0x15
+#define TBCR1A_DATA1 0xE1
+#define TBCR1A_DATA0 0x18
+#define TBCR1B_DATA1 0xE1
+#define TBCR1B_DATA0 0x19
+#define SDBCR1A_DATA1 0xE1
+#define SDBCR1A_DATA0 0x1C
+#define SDBCR1B_DATA1 0xE1
+#define SDBCR1B_DATA0 0x1D
 
-#define VBCR2_DATA1 E1
-#define VBCR2_DATA0 20
-#define IBCR2A_DATA1 E1
-#define IBCR2A_DATA0 24
-#define IBCR2B_DATA1 E1
-#define IBCR2B_DATA0 25
-#define TBCR2A_DATA1 E1
-#define TBCR2A_DATA0 28
-#define TBCR2B_DATA1 E1
-#define TBCR2B_DATA0 29
-#define SDBCR2A_DATA1 E1
-#define SDBCR2A_DATA0 2C
-#define SDBCR2B_DATA1 E1
-#define SDBCR2B_DATA0 2D
+#define VBCR2_DATA1 0xE1
+#define VBCR2_DATA0 0x20
+#define IBCR2A_DATA1 0xE1
+#define IBCR2A_DATA0 0x24
+#define IBCR2B_DATA1 0xE1
+#define IBCR2B_DATA0 0x25
+#define TBCR2A_DATA1 0xE1
+#define TBCR2A_DATA0 0x28
+#define TBCR2B_DATA1 0xE1
+#define TBCR2B_DATA0 0x29
+#define SDBCR2A_DATA1 0xE1
+#define SDBCR2A_DATA0 0x2C
+#define SDBCR2B_DATA1 0xE1
+#define SDBCR2B_DATA0 0x2D
 
-#define VBCR3_DATA1 E1
-#define VBCR3_DATA0 30
-#define IBCR3A_DATA1 E1
-#define IBCR3A_DATA0 34
-#define IBCR3B_DATA1 E1
-#define IBCR3B_DATA0 35
-#define TBCR3A_DATA1 E1
-#define TBCR3A_DATA0 38
-#define TBCR3B_DATA1 E1
-#define TBCR3B_DATA0 39
-#define SDBCR3A_DATA1 E1
-#define SDBCR3A_DATA0 3C
-#define SDBCR3B_DATA1 E1
-#define SDBCR3B_DATA0 3D
+#define VBCR3_DATA1 0xE1
+#define VBCR3_DATA0 0x30
+#define IBCR3A_DATA1 0xE1
+#define IBCR3A_DATA0 0x34
+#define IBCR3B_DATA1 0xE1
+#define IBCR3B_DATA0 0x35
+#define TBCR3A_DATA1 0xE1
+#define TBCR3A_DATA0 0x38
+#define TBCR3B_DATA1 0xE1
+#define TBCR3B_DATA0 0x39
+#define SDBCR3A_DATA1 0xE1
+#define SDBCR3A_DATA0 0x3C
+#define SDBCR3B_DATA1 0xE1
+#define SDBCR3B_DATA0 0x3D
 
 //PCM Control Data Bytes
 #define BATV_RESET_DATA 0x01
@@ -208,46 +210,46 @@ I2C_HandleTypeDef hi2c1;
 #define BAT_GET_VERSION_COMMAND 0x04
 #define BAT_GET_CHECKSUM_COMMAND 0x05
 #define BAT_GET_TELEMETRY_COMMAND 0x10
-#define BAT_GET_BROWNOUT_COMMAND 0X31
-#define BAT_GET_AUTO_SOFTWARE_RESET_COMMAND 0X32
-#define BAT_GET_MANUAL_RESET_COMMAND 0X33
-#define BAT_GET_HEATER_CONTROLLER_STATUS 0X90
-#define BAT_SET_HEATER_CONTROLLER_STATUS 0X91
-#define BAT_MANUAL_RESET 0X80
+#define BAT_GET_BROWNOUT_COMMAND 0x31
+#define BAT_GET_AUTO_SOFTWARE_RESET_COMMAND 0x32
+#define BAT_GET_MANUAL_RESET_COMMAND 0x33
+#define BAT_GET_HEATER_CONTROLLER_STATUS 0x90
+#define BAT_SET_HEATER_CONTROLLER_STATUS 0x91
+#define BAT_MANUAL_RESET 0x80
 
 //HEATER CONTROLLER MODES
-#define HEATER_THERMOSTAT_OFF 0X00
-#define HEATER_THERMOSTAT_ON 0X01
+#define HEATER_THERMOSTAT_OFF 0x00
+#define HEATER_THERMOSTAT_ON 0x01
 
 //BAT Telemetry Data Values
-#define VBAT_DATA1 E2
-#define VBAT_DATA0 80
-#define IBAT_DATA1 E2
-#define IBAT_DATA0 84
-#define IDIRBAT_DATA1 E2
-#define IDIRBAT_DATA2 8E
-#define TBRD_DATA1 E3
-#define TBRD_DATA0 08
-#define IPCM5V_DATA1 E2
-#define IPCM5V_DATA0 14
-#define VPCM5V_DATA1 E2
-#define VPCM5V_DATA0 00
-#define IPCM3V3_DATA1 E2
-#define IPCM3V3_DATA0 04
-#define VPCM3V3_DATA1 E2
-#define VPCM3V3_DATA0 00
-#define TBAT1_DATA1 E3
-#define TBAT1_DATA0 98
-#define HBAT1_DATA1 E3
-#define HBAT1_DATA0 9F
-#define TBAT2_DATA1 E3
-#define TBAT2_DATA0 A8
-#define HBAT2_DATA1 E3
-#define HBAT2_DATA0 AF
-#define TBAT3_DATA1 E3
-#define TBAT3_DATA0 B8
-#define HBAT3_DATA1 E3
-#define HBAT3_DATA0 BF
+#define VBAT_DATA1 0xE2
+#define VBAT_DATA0 0x80
+#define IBAT_DATA1 0xE2
+#define IBAT_DATA0 0x84
+#define IDIRBAT_DATA1 0xE2
+#define IDIRBAT_DATA2 0x8E
+#define TBRD_DATA1 0xE3
+#define TBRD_DATA0 0x08
+#define IPCM5V_DATA1 0xE2
+#define IPCM5V_DATA0 0x14
+#define VPCM5V_DATA1 0xE2
+#define VPCM5V_DATA0 0x10
+#define IPCM3V3_DATA1 0xE2
+#define IPCM3V3_DATA0 0x04
+#define VPCM3V3_DATA1 0xE2
+#define VPCM3V3_DATA0 0x00
+#define TBAT1_DATA1 0xE3
+#define TBAT1_DATA0 0x98
+#define HBAT1_DATA1 0xE3
+#define HBAT1_DATA0 0x9F
+#define TBAT2_DATA1 0xE3
+#define TBAT2_DATA0 0xA8
+#define HBAT2_DATA1 0xE3
+#define HBAT2_DATA0 0xAF
+#define TBAT3_DATA1 0xE3
+#define TBAT3_DATA0 0xB8
+#define HBAT3_DATA1 0xE3
+#define HBAT3_DATA0 0xBF
 
 
 
@@ -261,10 +263,12 @@ static void MX_I2C1_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void getStatus(uint8_t address,uint8_t data_received, int size);
+void getStatus(uint8_t address,uint8_t data_received[]);
 void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], int bytes_returned, int delay);
-void getError(uint8_t address,uint8_t data_received, int size);
+void getError(uint8_t address,uint8_t data_received[]);
 void getTelemetry(uint8_t address, uint8_t command, uint8_t data1, uint8_t data0, uint8_t data_received[], int bytes_returned, int delay);
+void setPDMTimerLimit(uint8_t timerLimit, uint8_t selectedPDM);
+void manualReset(uint8_t address);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -308,14 +312,59 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
-
   /* USER CODE BEGIN 3 */
+	  uint8_t address;
+	  uint8_t returnData[4] = {0b00000000, 0b00000000, 0b00000000, 0b00000000};
+	  uint8_t data1 = 0b00000000;
+	  uint8_t data0 = 0b00000000;
+	  uint8_t command = 0b00000000;
+
+	  char select = 0;
+	  int returnBytes = 0;
+	  int delay = 0;
+	  int timer = 0;
+	  int PDM = 0;
 
 
+	  //Read Select and Address
 
+	  if (select == 's'){
 
+		  getStatus(address,returnData);
 
+	  }
 
+	  else if (select == 'e'){
+
+		  getError(address,returnData);
+
+	  }
+
+	  else if (select == 'r'){
+
+		  manualReset(address);
+	  }
+
+	  else if (select == 't'){
+		  //Read command,data1,data0,returnbytes,delay
+		  getTelemetry(address,command,data1,data0,returnData,returnBytes,delay);
+	  }
+
+	  else if (select == 'c'){
+		  // Read command,data1,returnbytes,delay
+		  sendCommand(address,command,data1,returnData,returnBytes,delay);
+
+	  }
+	  else if (select == 'p'){
+		  // Read Timer Limit and PDM
+		  setPDMTimerLimit(timer,PDM);
+	  }
+
+	  else {
+		  printf("Command not recognized");
+	  }
+
+	  //print the array
 
   }
   /* USER CODE END 3 */
@@ -446,18 +495,17 @@ static void MX_GPIO_Init(void)
 
 /*
  * 	Purpose:
- * 	This function will get the status of either the EPS or Battery module
+ * 	This function will get the current status of either the EPS or Battery module
  *
  * 	Parameters:
  * 	@address - the target I2C Address. Either EPS or Batt in this case
  * 	@data_received - 8 bit array to hold the data returned
- * 	@size - the number of bytes to be returned
  *
  */
 
-void getStatus(uint8_t address, uint8_t data_received[], int size) {
+void getStatus(uint8_t address, uint8_t data_received[]) {
 
-
+	int bytes_returned = 2;
 	uint8_t *data[2];
 
 	data[0] = EPS_BOARD_STATUS_COMMAND;		//Status and data command for eps and bat are the same
@@ -469,7 +517,7 @@ void getStatus(uint8_t address, uint8_t data_received[], int size) {
 
 	HAL_Delay(1);
 
-	while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) size, (uint32_t) 50) != HAL_OK);
+	while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) bytes_returned, (uint32_t) 50) != HAL_OK);
 
 }
 
@@ -485,25 +533,31 @@ void getStatus(uint8_t address, uint8_t data_received[], int size) {
  *	command : the command byte to be sent
  *	data_sent : the data_sent byte to be sent
  *	data_received[] : array to hold received bytes
- *	delay: the delay required for the command
+ *	bytes returned: the number of bytes to be returned from the command
+ *	delay: the delay required for the command in milliseconds
  *
  */
 void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], int bytes_returned, int delay){
 
-	uint8_t *data[2];
+	uint8_t *send_data[2];
 
-	data[0] = command;
-	data[1] = data_sent;
+	send_data[0] = command;
+	send_data[1] = data_sent;
 
 
-
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
 
 	HAL_Delay(delay);
 
-	while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) bytes_returned, (uint32_t) 50) != HAL_OK);
+	if(bytes_returned != 0){
+
+		while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) bytes_returned, (uint32_t) 50) != HAL_OK);
+
+	}
 
 }
+
+
 
 
 
@@ -514,30 +568,100 @@ void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t da
  * 	Parameters:
  * 	@address - the target I2C Address. Either EPS or Batt in this case
  * 	@data_received - 8 bit array to hold the data returned
- * 	@size - the number of bytes to be returned
  *
  */
 
 
-void getError(uint8_t address, uint8_t data_received[],int size) {
+void getError(uint8_t address, uint8_t data_received[]) {
 
-	uint8_t *data[2];
+	uint8_t *send_data[2];
 
-	data[0] = EPS_ERROR_COMMAND;		//Error data and command for eps and bat are the same
-	data[1] = DEFAULT_DATA;
+	send_data[0] = EPS_ERROR_COMMAND;		//Error data and command for eps and bat are the same
+	send_data[1] = DEFAULT_DATA;
 
 
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
 
 	HAL_Delay(1);
 
-	while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) size, (uint32_t) 50) != HAL_OK);
-
+	while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) 2, (uint32_t) 50) != HAL_OK);
 
 
 }
 
+/* Purpose:
+ * This function will get the retrieve a specific piece of telemetry information for either the battery or EPS module
+ *
+ * Parameters:
+ * @address: The target I2C Address. Either EPS or Batt
+ * @command: The telemetry command to send
+ * @data1: The first hexadecimal data. E? in this case
+ * @data0: The second hex data.
+ * @data_received: An array to hold the return data
+ * @bytes_returned: The number of bytes to be sent bacl
+ * @delay: delay in milliseconds
+ */
 
+void getTelemetry(uint8_t address, uint8_t command, uint8_t data1, uint8_t data0, uint8_t data_received[], int bytes_returned, int delay){
+	uint8_t *send_data[3];
+	send_data[0] = command;
+	send_data[1] = data1;
+	send_data[2] = data0;
+
+
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 3, (uint32_t) 50) != HAL_OK );
+	HAL_Delay(delay);
+
+	if(bytes_returned != 0){
+
+		while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) bytes_returned, (uint32_t) 50) != HAL_OK);
+
+	}
+
+}
+/* Purpose:
+ * This function will set the PDM Timer limit of any selected PDM
+ *
+ * Parameters:
+ * @timerLimit: The amount of time to set the timer to (round to 30 second intervals)
+ * @selectedPDM: The selected PDM module
+ *
+ *
+ */
+
+void setPDMTimerLimit(uint8_t timerLimit, uint8_t selectedPDM) {
+
+	uint16_t address = EPS_ADDRESS;
+	uint8_t *send_data[3];
+	send_data[0] = EPS_SET_PDMN_TIMER_LIMIT;
+	send_data[1] = selectedPDM;
+	send_data[2] = timerLimit;
+
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 3, (uint32_t) 50) != HAL_OK );
+	HAL_Delay(200);
+
+}
+
+
+/*
+ * 	Purpose:
+ * 	This function will manually reset either the EPS or Batt module
+ *
+ * 	Parameters:
+ * 	@address - the target I2C Address. Either EPS or Batt in this case
+ *
+ */
+
+
+void manualReset(uint8_t address){
+
+	uint8_t send_data[2];
+	send_data[0] = EPS_MANUAL_RESET_COMMAND;
+	send_data[1] = DEFAULT_DATA;
+
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
+
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
