@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Project>
-<ProjectName>C:\Users\Julie Belleville\Documents\_FirstYear\_UBC Orbit\4 Timer_interrupt_attempt1\\4 Timer_interrupt_attempt1</ProjectName>
+<ProjectName>C:\Users\Julie Belleville\Documents\_github\CDH\4 Timer_interrupt_attempt1\\4 Timer_interrupt_attempt1</ProjectName>
 <CMSIS>..\Drivers\CMSIS</CMSIS>
 <HAL_Driver>C:\Users\Julie Belleville\STM32Cube\Repository\STM32Cube_FW_F4_V1.18.0\Drivers\CMSIS</HAL_Driver>
 
@@ -32,7 +32,7 @@
     <usedDebug>true</usedDebug>
     	<debugprobe></debugprobe>
     <optimization>6</optimization>
-    <icfloc>1</icfloc>
+    <icfloc>0</icfloc>
     <Adefines>
         <define></define>
     </Adefines>   
