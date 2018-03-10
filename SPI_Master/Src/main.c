@@ -38,7 +38,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
-#include <string.h>
 
 /* USER CODE BEGIN Includes */
 
@@ -46,28 +45,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
-SPI_HandleTypeDef hspi2;
-
-UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
-//Definition for boolean variables used in conditional statements
-#define TRUE 1
-#define FALSE 0
-
-//Standard definition for data buffer
-#define BUFFER_SIZE 64
-
-//Timeout used in Serial communication transmitting and receiving
-#define timeOut 0x0FFF
-
-//Structure declaring board settings, allows each board to keep track of other boards.
-struct board {
-	uint8_t data[BUFFER_SIZE];
-	char letter;
-}STM_A, STM_B, STM_C;
 
 /* USER CODE END PV */
 
@@ -75,12 +55,9 @@ struct board {
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
-static void MX_SPI2_Init(void);
-static void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void printStringToConsole(char message[]);
 
 /* USER CODE END PFP */
 
@@ -114,12 +91,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI1_Init();
-  MX_SPI2_Init();
-  MX_USART2_UART_Init();
 
   /* USER CODE BEGIN 2 */
-  char DataToSend[] = "1";
-  char DataToReceive[] = "0";
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -127,11 +101,9 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
+
   /* USER CODE BEGIN 3 */
-	  HAL_Delay(500);
-//	  HAL_SPI_Transmit(&hspi1,(uint8_t*)(DataToSend), 2,timeOut);
-	  HAL_SPI_Receive(&hspi2,(uint8_t*)(DataToReceive), 2,timeOut);
-	  printStringToConsole(DataToReceive);
+
   }
   /* USER CODE END 3 */
 
@@ -212,72 +184,17 @@ static void MX_SPI1_Init(void)
 
 }
 
-/* SPI2 init function */
-static void MX_SPI2_Init(void)
-{
-
-  /* SPI2 parameter configuration*/
-  hspi2.Instance = SPI2;
-  hspi2.Init.Mode = SPI_MODE_SLAVE;
-  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi2.Init.CRCPolynomial = 10;
-  if (HAL_SPI_Init(&hspi2) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-}
-
-/* USART2 init function */
-static void MX_USART2_UART_Init(void)
-{
-
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-}
-
 /** Pinout Configuration
 */
 static void MX_GPIO_Init(void)
 {
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
 
 }
 
 /* USER CODE BEGIN 4 */
-
-// Description: Transmit a string over huart2. If solder bridges SB13 and SB14 are not removed,
-//				this will transmit a message to the STLink chip and can be printed on a serial monitor
-//				directly (such as the Arduino serial monitor). Otherwise, need to connect the huart2 pins to
-// 				an Ardunio an receive the message from that end.
-// Input: message to be transmitted
-void printStringToConsole(char message[]) {
-	HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut);
-}
-
-
 
 /* USER CODE END 4 */
 
