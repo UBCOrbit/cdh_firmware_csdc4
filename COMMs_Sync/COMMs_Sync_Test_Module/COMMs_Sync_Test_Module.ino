@@ -4,6 +4,9 @@
 
 
 int packet = 0b01110111; // Equivalent to w in ASCII.
+
+int packet = 0b0000000000000000000;
+
 int done = 0;
 
 void setup() {
