@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
- * File Name          : main.c
+  * File Name          : main.c
   * Description        : Main program body
   ******************************************************************************
   ** This notice applies to any and all portions of this file
@@ -38,13 +38,15 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
-//include uart
+
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+
+UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -260,6 +262,7 @@ I2C_HandleTypeDef hi2c1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -302,6 +305,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
+  MX_USART2_UART_Init();
 
   /* USER CODE BEGIN 2 */
 
@@ -312,6 +316,7 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
+
   /* USER CODE BEGIN 3 */
 	  uint8_t address;
 	  uint8_t returnData[4] = {0b00000000, 0b00000000, 0b00000000, 0b00000000};
@@ -447,14 +452,31 @@ static void MX_I2C1_Init(void)
 
 }
 
+/* USART2 init function */
+static void MX_USART2_UART_Init(void)
+{
+
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
 /** Configure pins as 
         * Analog 
         * Input 
         * Output
         * EVENT_OUT
         * EXTI
-     PA2   ------> USART2_TX
-     PA3   ------> USART2_RX
 */
 static void MX_GPIO_Init(void)
 {
@@ -476,14 +498,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : USART_TX_Pin USART_RX_Pin */
-  GPIO_InitStruct.Pin = USART_TX_Pin|USART_RX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -493,183 +507,15 @@ static void MX_GPIO_Init(void)
 
 }
 
-/*
- * 	Purpose:
- * 	This function will get the current status of either the EPS or Battery module
- *
- * 	Parameters:
- * 	@address - the target I2C Address. Either EPS or Batt in this case
- * 	@data_received - 8 bit array to hold the data returned
- *
- */
+/* USER CODE BEGIN 4 */
 
-void getStatus(uint8_t address, uint8_t data_received[]) {
-
-	int bytes_returned = 2;
-	uint8_t *data[2];
-
-	data[0] = EPS_BOARD_STATUS_COMMAND;		//Status and data command for eps and bat are the same
-	data[1] = DEFAULT_DATA;
-
-
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
-
-
-	HAL_Delay(1);
-
-	while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) bytes_returned, (uint32_t) 50) != HAL_OK);
-
-}
-
-
-
-/*
- * 	Purpose:
- *	This function will send a command to either the EPS or Battery module to request data
- *
- *
- *	Parameters:
- *	address : the target address (either EPS or Battery)
- *	command : the command byte to be sent
- *	data_sent : the data_sent byte to be sent
- *	data_received[] : array to hold received bytes
- *	bytes returned: the number of bytes to be returned from the command
- *	delay: the delay required for the command in milliseconds
- *
- */
-void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], int bytes_returned, int delay){
-
-	uint8_t *send_data[2];
-
-	send_data[0] = command;
-	send_data[1] = data_sent;
-
-
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
-
-	HAL_Delay(delay);
-
-	if(bytes_returned != 0){
-
-		while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) bytes_returned, (uint32_t) 50) != HAL_OK);
-
-	}
-
-}
-
-
-
-
-
-/*
- * 	Purpose:
- * 	This function will get the last error of either the EPS or Batt module
- *
- * 	Parameters:
- * 	@address - the target I2C Address. Either EPS or Batt in this case
- * 	@data_received - 8 bit array to hold the data returned
- *
- */
-
-
-void getError(uint8_t address, uint8_t data_received[]) {
-
-	uint8_t *send_data[2];
-
-	send_data[0] = EPS_ERROR_COMMAND;		//Error data and command for eps and bat are the same
-	send_data[1] = DEFAULT_DATA;
-
-
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
-
-	HAL_Delay(1);
-
-	while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) 2, (uint32_t) 50) != HAL_OK);
-
-
-}
-
-/* Purpose:
- * This function will get the retrieve a specific piece of telemetry information for either the battery or EPS module
- *
- * Parameters:
- * @address: The target I2C Address. Either EPS or Batt
- * @command: The telemetry command to send
- * @data1: The first hexadecimal data. E? in this case
- * @data0: The second hex data.
- * @data_received: An array to hold the return data
- * @bytes_returned: The number of bytes to be sent bacl
- * @delay: delay in milliseconds
- */
-
-void getTelemetry(uint8_t address, uint8_t command, uint8_t data1, uint8_t data0, uint8_t data_received[], int bytes_returned, int delay){
-	uint8_t *send_data[3];
-	send_data[0] = command;
-	send_data[1] = data1;
-	send_data[2] = data0;
-
-
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 3, (uint32_t) 50) != HAL_OK );
-	HAL_Delay(delay);
-
-	if(bytes_returned != 0){
-
-		while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) bytes_returned, (uint32_t) 50) != HAL_OK);
-
-	}
-
-}
-/* Purpose:
- * This function will set the PDM Timer limit of any selected PDM
- *
- * Parameters:
- * @timerLimit: The amount of time to set the timer to (round to 30 second intervals)
- * @selectedPDM: The selected PDM module
- *
- *
- */
-
-void setPDMTimerLimit(uint8_t timerLimit, uint8_t selectedPDM) {
-
-	uint16_t address = EPS_ADDRESS;
-	uint8_t *send_data[3];
-	send_data[0] = EPS_SET_PDMN_TIMER_LIMIT;
-	send_data[1] = selectedPDM;
-	send_data[2] = timerLimit;
-
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 3, (uint32_t) 50) != HAL_OK );
-	HAL_Delay(200);
-
-}
-
-
-/*
- * 	Purpose:
- * 	This function will manually reset either the EPS or Batt module
- *
- * 	Parameters:
- * 	@address - the target I2C Address. Either EPS or Batt in this case
- *
- */
-
-
-void manualReset(uint8_t address){
-
-	uint8_t send_data[2];
-	send_data[0] = EPS_MANUAL_RESET_COMMAND;
-	send_data[1] = DEFAULT_DATA;
-
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
-
-}
+/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
   * @param  None
   * @retval None
   */
-
-
 void _Error_Handler(char * file, int line)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
