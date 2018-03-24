@@ -199,6 +199,7 @@ void compareData(int baseIndex, int numBytes){
 	clearArray(tempBuffer);
 
 	while(received == 0){
+		printStringToConsole("Waiting..");
 		if(HAL_SPI_Receive(&hspi1, tempBuffer, numBytes, timeOut) == HAL_OK)
 			received = 1;
 	}
