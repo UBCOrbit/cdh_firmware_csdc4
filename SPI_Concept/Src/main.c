@@ -126,11 +126,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_Delay(500);
   /* USER CODE END WHILE */
   /* USER CODE BEGIN 3 */
-	  HAL_SPI_Transmit(&hspi1,(uint8_t*)(DataToSend), 2,timeOut);
-	//  HAL_SPI_Receive(&hspi2,(uint8_t*)(DataToReceive), 2,timeOut);
+	  HAL_Delay(500);
+//	  HAL_SPI_Transmit(&hspi1,(uint8_t*)(DataToSend), 2,timeOut);
+	  HAL_SPI_Receive(&hspi2,(uint8_t*)(DataToReceive), 2,timeOut);
 	  printStringToConsole(DataToReceive);
   }
   /* USER CODE END 3 */
