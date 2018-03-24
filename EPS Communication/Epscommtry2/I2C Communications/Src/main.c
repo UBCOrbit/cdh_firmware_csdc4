@@ -268,10 +268,10 @@ static void MX_I2C1_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void getStatus(uint8_t *address, uint8_t data_received[]);
+void getStatus(uint16_t address, uint8_t *data_received);
 void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], int bytes_returned, int delay);
-void getError(uint8_t *address, uint8_t data_received[]);
-void getTelemetry(uint8_t *address, uint8_t *command, uint8_t *data1, uint8_t *data0, uint8_t data_received[], uint8_t *bytes_returned, uint8_t *delay);
+void getError(uint8_t address, uint8_t data_received[]);
+void getTelemetry(uint8_t address, uint8_t command, uint8_t data1, uint8_t data0, uint8_t data_received[], uint8_t bytes_returned, uint8_t delay);
 void setPDMTimerLimit(uint8_t timerLimit, uint8_t selectedPDM);
 void manualReset(uint8_t address);
 /* USER CODE END PFP */
@@ -321,29 +321,38 @@ int main(void)
 
   /* USER CODE BEGIN 3 */
 
-	  uint8_t returnData[4] = {0b00000000, 0b00000000, 0b00000000, 0b00000000};
-	  uint8_t *data1;
-	  uint8_t *data0;
-	  uint8_t *command;
-	  uint8_t *select;
-	  uint8_t *address;
-	  uint8_t *returnBytes;
-	  uint8_t *delay;
+	  uint8_t returnData[2] = {0,0};
+	  uint8_t data1 =0;
+	  uint8_t data0 = 0;
+	  uint8_t command = 0;
+	  uint8_t select = 0;
+	  uint16_t address= 0 ;
+	  uint8_t returnBytes = 0;
+	  uint8_t delay = 0;
 	  int timer = 0;
 	  int PDM = 0;
 
-
-	  // UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout
-
-	  while(HAL_UART_Receive(&huart2, select, 1, 50) != HAL_OK);
-
-	  while(HAL_UART_Receive(&huart2, address, 1, 50) != HAL_OK);
-
+	  while(HAL_UART_Receive(&huart2, &select, 1, 50) != HAL_OK);
+	  HAL_UART_Transmit(&huart2, &select, 1, 50);
+	  while(HAL_UART_Receive(&huart2,(uint8_t *) &address, 2, 50) != HAL_OK);
+	  HAL_UART_Transmit(&huart2, (uint8_t *)&address, 2, 50);
 	  //Read Select and Address
 
 	  if (select == 's'){
 
-		  getStatus(address,returnData);
+		  uint8_t data0 = 0x10;
+		  	uint8_t data1 = 0xE2;
+		  	uint8_t data2= 0x80;
+
+		  	HAL_I2C_Master_Transmit(&hi2c1, 0x54, (uint8_t*)&data0, 1, 50);
+		  	HAL_I2C_Master_Transmit(&hi2c1, 0x54, (uint8_t*)&data1, 1, 50);
+		  	HAL_I2C_Master_Transmit(&hi2c1, 0x54, (uint8_t*)&data2, 1, 50);
+		  	HAL_Delay(15);
+
+		  	HAL_I2C_Master_Receive(&hi2c1, 0x54, returnData, 2, 50);
+		  	uint16_t received = (uint16_t)((returnData[0] + (returnData[1]*256))* 0.008993);
+		  	uint8_t send= 0b01000010;
+		  HAL_UART_Transmit(&huart2, (uint8_t*)&send, 1, 50);
 
 	  }
 
@@ -361,11 +370,11 @@ int main(void)
 	  else if (select == 't'){
 		  //Read command,data1,data0,returnbytes,delay
 
-		  while(HAL_UART_Receive(&huart2, command, 1, 50) != HAL_OK);
-		  while(HAL_UART_Receive(&huart2, data1, 1, 50) != HAL_OK);
-		  while(HAL_UART_Receive(&huart2, data0, 1, 50) != HAL_OK);
-		  while(HAL_UART_Receive(&huart2, returnBytes, 1, 50) != HAL_OK);
-		  while(HAL_UART_Receive(&huart2, delay, 1, 50) != HAL_OK);
+		  while(HAL_UART_Receive(&huart2, &command, 1, 50) != HAL_OK);
+		  while(HAL_UART_Receive(&huart2, &data1, 1, 50) != HAL_OK);
+		  while(HAL_UART_Receive(&huart2, &data0, 1, 50) != HAL_OK);
+		  while(HAL_UART_Receive(&huart2, &returnBytes, 1, 50) != HAL_OK);
+		  while(HAL_UART_Receive(&huart2, &delay, 1, 50) != HAL_OK);
 
 		  getTelemetry(address,command,data1,data0,returnData,returnBytes,delay);
 	  }
@@ -383,7 +392,6 @@ int main(void)
 	  else {
 		  printf("Command not recognized");
 	  }
-
   }
   /* USER CODE END 3 */
 
@@ -532,23 +540,16 @@ static void MX_GPIO_Init(void)
  *
  */
 
-void getStatus(uint8_t *address, uint8_t data_received[]) {
+void getStatus(uint16_t address, uint8_t *data_received) {
+	uint16_t bytes_returned = 2;
+	uint8_t data0 = 0x01;
+	uint8_t data1 = 0x00;
 
-	uint16_t sendAddress = address;
-	int bytes_returned = 2;
-	uint8_t data[2];
-
-	data[0] = EPS_BOARD_STATUS_COMMAND;		//Status and data command for eps and bat are the same
-	data[1] = DEFAULT_DATA;
-
-
-	while( HAL_I2C_Master_Transmit(&hi2c1, sendAddress, data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
-
-
+	while(HAL_I2C_Master_Transmit(&hi2c1, address, (uint8_t*)&data0, 1, 50) != HAL_OK);
+	while(HAL_I2C_Master_Transmit(&hi2c1, address, (uint8_t*)&data1, 1, 50) != HAL_OK);
 	HAL_Delay(1);
 
-	while( HAL_I2C_Master_Receive(&hi2c1, sendAddress, data_received, (uint16_t) bytes_returned, (uint32_t) 50) != HAL_OK);
-
+	while( HAL_I2C_Master_Receive(&hi2c1, address, data_received, bytes_returned, 50) != HAL_OK);
 }
 
 
@@ -602,20 +603,19 @@ void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t da
  */
 
 
-void getError(uint8_t *address, uint8_t data_received[]) {
+void getError(uint8_t address, uint8_t data_received[]) {
 
 	uint8_t send_data[2];
-	uint16_t send_address = address;
 
 	send_data[0] = EPS_ERROR_COMMAND;		//Error data and command for eps and bat are the same
 	send_data[1] = DEFAULT_DATA;
 
 
-	while( HAL_I2C_Master_Transmit(&hi2c1, send_address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
 
 	HAL_Delay(1);
 
-	while( HAL_I2C_Master_Receive(&hi2c1, send_address, data_received, (uint16_t) 2, (uint32_t) 50) != HAL_OK);
+	while( HAL_I2C_Master_Receive(&hi2c1,  (uint16_t) address, data_received, (uint16_t) 2, (uint32_t) 50) != HAL_OK);
 
 
 }
@@ -633,21 +633,18 @@ void getError(uint8_t *address, uint8_t data_received[]) {
  * @delay: delay in milliseconds
  */
 
-void getTelemetry(uint8_t *address, uint8_t *command, uint8_t *data1, uint8_t *data0, uint8_t data_received[], uint8_t *bytes_returned, uint8_t *delay){
-	uint16_t send_address = address;
+void getTelemetry(uint8_t address, uint8_t command, uint8_t data1, uint8_t data0, uint8_t data_received[], uint8_t bytes_returned, uint8_t delay){
 	uint8_t send_data[3];
 	send_data[0] = command;
 	send_data[1] = data1;
 	send_data[2] = data0;
 
-	uint16_t return_bytes = bytes_returned;
-
-	while( HAL_I2C_Master_Transmit(&hi2c1, send_address, send_data, (uint16_t) 3, (uint32_t) 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address, send_data, (uint16_t) 3, (uint32_t) 50) != HAL_OK );
 	HAL_Delay(delay);
 
 	if(bytes_returned != 0){
 
-		while( HAL_I2C_Master_Receive(&hi2c1, send_address, data_received, return_bytes, (uint32_t) 50) != HAL_OK);
+		while( HAL_I2C_Master_Receive(&hi2c1,  (uint16_t) address, data_received, (uint16_t)bytes_returned, (uint32_t) 50) != HAL_OK);
 
 	}
 
