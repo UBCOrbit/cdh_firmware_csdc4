@@ -70,6 +70,9 @@
 /* #define USE_FULL_ASSERT    1U */
 
 /* USER CODE BEGIN Private defines */
+extern int number_of_timer_repeats;
+extern int wanted_number_of_timer_repeats;
+extern int timer_remainder;
 
 /* USER CODE END Private defines */
 

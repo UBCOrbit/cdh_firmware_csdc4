@@ -44,6 +44,11 @@
 /* USER CODE BEGIN Includes */
 #define TRUE 1
 #define FALSE 0
+#define BUS_FREQUENCY 84000000.0
+#define PRESCALER 42000.0
+#define NOT_SET -5
+#define INTERRUPT_PERIOD 30
+
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -51,8 +56,13 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
 
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+//Note to self: lock down these global variables somehow so that not EVERYONE can use them :')))
+int number_of_timer_repeats;
+int wanted_number_of_timer_repeats;
+int timer_remainder;
 
 /* USER CODE END PV */
 
@@ -60,7 +70,11 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM3_Init(void);
+
 static void MX_TIM3_Change_Period(int period);
+static void timer_period_to(int seconds);
+
+static void set_timer_to_trigger_in(int seconds);
 static void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN PFP */
@@ -76,7 +90,9 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	number_of_timer_repeats = NOT_SET;
+	wanted_number_of_timer_repeats = NOT_SET;
+	timer_remainder = NOT_SET;
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -101,17 +117,22 @@ int main(void)
   MX_USART2_UART_Init();
 
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim3); //activates interrupt
+  //HAL_TIM_Base_Start_IT(&htim3); //activates interrupt
+  set_timer_to_trigger_in(90);
+  //testing changes in period and setting time through period
+ /* timer_period_to(5);
+  HAL_Delay(20000);
+  timer_period_to(10);
+  HAL_Delay(20000);
+  timer_period_to(15);
+  HAL_Delay(60000);*/
+
+  //testing starts and stops of timer
+ /* MX_TIM3_Change_Period(9999);
   HAL_Delay(5000);
-  MX_TIM3_Change_Period(199); //testing changes in period
-  HAL_Delay(5000);
-  MX_TIM3_Change_Period(499);
-  HAL_Delay(5000);
- // MX_TIM3_Change_Period(9999);
-  // HAL_Delay(5000);
-  HAL_TIM_Base_Stop_IT(&htim3); //stops interrupt I believe
-  HAL_Delay(10000);
-  HAL_TIM_Base_Start_IT(&htim3); //activates interrupt
+  HAL_TIM_Base_Stop_IT(&htim3);*/ //stops interrupt I believe
+  /*HAL_Delay(10000);
+  HAL_TIM_Base_Start_IT(&htim3);*/ //activates interrupt
 
 
   /* USER CODE END 2 */
@@ -193,9 +214,9 @@ static void MX_TIM3_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig;
 
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 16000;
+  htim3.Init.Prescaler = 42000-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 9999;
+  htim3.Init.Period = 5000-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
@@ -211,18 +232,6 @@ static void MX_TIM3_Init(void)
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-}
-
-/* TIM3 change period function */
-static void MX_TIM3_Change_Period(int period)
-{
-  htim3.Init.Period = period;
-  HAL_TIM_Base_Start_IT(&htim3);
-  if (HAL_TIM_Base_Init(&htim3) != HAL_OK) //somehow necessary, not sure why
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -286,6 +295,35 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+static void set_timer_to_trigger_in(int seconds)
+{
+	//deal with global variable
+	wanted_number_of_timer_repeats = seconds/INTERRUPT_PERIOD;
+	timer_remainder = seconds%INTERRUPT_PERIOD;
+	number_of_timer_repeats = -1;
+
+	//begin timer
+	timer_period_to(INTERRUPT_PERIOD);
+}
+
+/* TIM3 change period function */
+static void MX_TIM3_Change_Period(int period)
+{
+  htim3.Init.Period = period;
+  HAL_TIM_Base_Start_IT(&htim3);
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK) //somehow necessary, not sure why
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
+static void timer_period_to(int seconds)
+{
+	int period = (int) (seconds*BUS_FREQUENCY/PRESCALER);
+	MX_TIM3_Change_Period(period);
+}
 
 /* USER CODE END 4 */
 

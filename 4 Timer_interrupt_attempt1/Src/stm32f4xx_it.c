@@ -34,9 +34,10 @@
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_it.h"
+#include "main.h"
 
 /* USER CODE BEGIN 0 */
-
+#define NOT_SET -5
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -78,7 +79,22 @@ void TIM3_IRQHandler(void)
   /* USER CODE END TIM3_IRQn 0 */
   HAL_TIM_IRQHandler(&htim3);
   /* USER CODE BEGIN TIM3_IRQn 1 */
-  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+  if (wanted_number_of_timer_repeats != NOT_SET &&
+	  number_of_timer_repeats != NOT_SET &&
+	  number_of_timer_repeats < wanted_number_of_timer_repeats)
+  {
+	  number_of_timer_repeats++;
+  }
+  else if (wanted_number_of_timer_repeats != NOT_SET &&
+		  number_of_timer_repeats != NOT_SET &&
+		  number_of_timer_repeats == wanted_number_of_timer_repeats)
+  {
+	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+	  //wanted_number_of_timer_repeats = NOT_SET;
+	  number_of_timer_repeats = 1;
+  }
+  //HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
   /* USER CODE END TIM3_IRQn 1 */
 }
 
