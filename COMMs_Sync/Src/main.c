@@ -225,7 +225,11 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void Packet_Parse(char *pointer, int packet_legnth)
+{
 
+
+}
 /* USER CODE END 4 */
 
 /**
