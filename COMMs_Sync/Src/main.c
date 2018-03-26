@@ -60,7 +60,8 @@ static void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-
+int Receive_Packet(char *pointer);
+void Parse_Packet(char *pointer, int packet_legnth);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -225,6 +226,19 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+int Receive_Packet(char buf[256])
+{
+	int received;
+	if(HAL_SPI_Receive(&hspi1, tempBuffer, numBytes, timeOut) == HAL_OK)
+	{
+		received = 1;
+	}
+
+
+
+}
+
+
 void Packet_Parse(char *pointer, int packet_legnth)
 {
 
