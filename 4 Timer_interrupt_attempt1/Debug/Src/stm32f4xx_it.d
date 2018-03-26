@@ -27,7 +27,8 @@ Src/stm32f4xx_it.o: ../Src/stm32f4xx_it.c \
  C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
  C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
- C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Inc/stm32f4xx_it.h
+ C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Inc/stm32f4xx_it.h \
+ C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Inc/main.h
 
 C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 
@@ -86,3 +87,5 @@ C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Dri
 C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
 
 C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Inc/stm32f4xx_it.h:
+
+C:/Users/Julie\ Belleville/Documents/_github/CDH/4\ Timer_interrupt_attempt1/Inc/main.h:
