@@ -78,7 +78,9 @@ void TIM3_IRQHandler(void)
 
   /* USER CODE END TIM3_IRQn 0 */
   HAL_TIM_IRQHandler(&htim3);
+
   /* USER CODE BEGIN TIM3_IRQn 1 */
+  //increments the number of times 30 seconds has elapsed at each trigger
   if (wanted_number_of_timer_repeats != NOT_SET &&
 	  number_of_timer_repeats != NOT_SET &&
 	  number_of_timer_repeats < wanted_number_of_timer_repeats)
@@ -89,10 +91,26 @@ void TIM3_IRQHandler(void)
 		  number_of_timer_repeats != NOT_SET &&
 		  number_of_timer_repeats == wanted_number_of_timer_repeats)
   {
-	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-	  //wanted_number_of_timer_repeats = NOT_SET;
-	  number_of_timer_repeats = 1;
+	  timer_period_to(timer_remainder);
+	  number_of_timer_repeats++;
+
   }
+  else if (wanted_number_of_timer_repeats != NOT_SET &&
+  		  number_of_timer_repeats != NOT_SET &&
+		  number_of_timer_repeats == 1 + wanted_number_of_timer_repeats)
+  {
+	  number_of_timer_repeats++;
+  }
+  else if (wanted_number_of_timer_repeats != NOT_SET &&
+  		  number_of_timer_repeats != NOT_SET &&
+		  number_of_timer_repeats == 2 + wanted_number_of_timer_repeats)
+    {
+  	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+  	  //this is my MOST RECENT CHANGE, from putting number_of... to 1
+  	  wanted_number_of_timer_repeats = NOT_SET;
+  	  number_of_timer_repeats = NOT_SET;
+  	  HAL_TIM_Base_Stop_IT(&htim3);
+    }
   //HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 
   /* USER CODE END TIM3_IRQn 1 */
