@@ -74,6 +74,7 @@ extern int number_of_timer_repeats;
 extern int wanted_number_of_timer_repeats;
 extern int timer_remainder;
 
+extern void timer_period_to(int seconds);
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
