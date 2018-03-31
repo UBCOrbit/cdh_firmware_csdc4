@@ -44,7 +44,7 @@
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
-SPI_HandleTypeDef hspi2;
+SPI_HandleTypeDef hspi3;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -54,14 +54,15 @@ SPI_HandleTypeDef hspi2;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_SPI2_Init(void);
+static void MX_SPI3_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 void write_enable (int enable);
 void write_status (uint8_t data);
-void read_mem (uint16_t address, int size, void *buffer);
-void write_mem (uint16_t address, int size, void *buffer);
+void read_status (uint8_t *status);
+void read_mem (uint16_t address, int size, uint8_t *buffer);
+void write_mem (uint16_t address, int size, uint8_t *buffer);
 void sleep (int sleep);
 
 /* USER CODE END PFP */
@@ -95,7 +96,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI2_Init();
+  MX_SPI3_Init();
 
   /* USER CODE BEGIN 2 */
 
@@ -170,23 +171,23 @@ void SystemClock_Config(void)
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
-/* SPI2 init function */
-static void MX_SPI2_Init(void)
+/* SPI3 init function */
+static void MX_SPI3_Init(void)
 {
 
-  hspi2.Instance = SPI2;
-  hspi2.Init.Mode = SPI_MODE_MASTER;
-  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi2.Init.CRCPolynomial = 10;
-  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  hspi3.Instance = SPI3;
+  hspi3.Init.Mode = SPI_MODE_MASTER;
+  hspi3.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi3.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi3.Init.NSS = SPI_NSS_SOFT;
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi3.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi3) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -214,20 +215,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PA0 PA1 LD2_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|LD2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : USART_TX_Pin USART_RX_Pin */
   GPIO_InitStruct.Pin = USART_TX_Pin|USART_RX_Pin;
@@ -236,6 +233,20 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LD2_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB0 PB1 PB2 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
@@ -249,7 +260,20 @@ static void MX_GPIO_Init(void)
  * Parameter: enable - 1 if write enabled, 0 if not
  */
 void write_enable (int enable) {
+	uint8_t cmd;
+	if(enable == 1)
+		cmd = 0x06;
+	else
+		cmd = 0x04;
 
+	//Drive CS pin to low
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+
+	//Send command
+	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
+
+	//Drive CS pin back to high
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
 }
 
 /*
@@ -259,7 +283,40 @@ void write_enable (int enable) {
  * Parameter: data - 8bit data to write to the status register
  */
 void write_status (uint8_t data){
+	uint8_t cmd = 0x01;
 
+	//Drive CS pin to low
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+
+	//Send command
+	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
+
+	//Send data to write to register
+	HAL_SPI_Transmit(&hspi3, &data, 1, 50);
+
+	//Drive CS pin back to high
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+}
+
+/*
+ * Read data from the status register
+ *
+ * Parameter: data - 8bit data to write to the status register
+ */
+void read_status (uint8_t *status){
+	uint8_t cmd = 0x05;
+
+	//Drive CS pin to low
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+
+	//Send command
+	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
+
+	//Read status
+	while(HAL_SPI_Receive(&hspi3, status, 1, 50) != HAL_OK);
+
+	//Drive CS pin back to high
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
 }
 
 /*
@@ -270,8 +327,22 @@ void write_status (uint8_t data){
  * Parameter: size - size in bytes to read
  * Parameter: buffer - pointer in memory where the read data should be stored
  */
-void read_mem (uint16_t address, int size, void *buffer){
+void read_mem (uint16_t address, int size, uint8_t *buffer){
+	uint8_t cmd = 0x03;
 
+	//Drive CS pin to low
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+
+	//Send read command
+	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
+
+	//Send address to read from in memory
+	HAL_SPI_Transmit(&hspi3, (uint8_t *)&address, 2, 50);
+
+	while(HAL_SPI_Receive(&hspi3, buffer, size, 50) != HAL_OK);
+
+	//Drive CS pin back to high to end reading communication
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
 }
 
 /*
@@ -281,8 +352,23 @@ void read_mem (uint16_t address, int size, void *buffer){
  * Parameter: size - size in bytes to write
  * Parameter: buffer - pointer in memory where data to write is stored
  */
-void write_mem (uint16_t address, int size, void *buffer){
+void write_mem (uint16_t address, int size, uint8_t *buffer){
+	uint8_t cmd = 0x02;
 
+	//Drive CS pin to low
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+
+	//Send write command
+	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
+
+	//Send address to write to in memory
+	HAL_SPI_Transmit(&hspi3, (uint8_t *)&address, 2, 50);
+
+	//Send data
+	HAL_SPI_Transmit(&hspi3, buffer, size, 50);
+
+	//Drive CS pin back to high to end writing communication
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
 }
 
 /*
@@ -291,7 +377,21 @@ void write_mem (uint16_t address, int size, void *buffer){
  * Parameter: sleep - 1 if sleep, 0 if wake up
  */
 void sleep (int sleep){
+	uint8_t cmd;
+	if(sleep == 1)
+		cmd = 0xB9;
+	else
+		cmd = 0xAB;
 
+	//Drive CS pin to low
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+
+	//Send command to wake up or sleep
+	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
+
+	//Drive CS pin back to high
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_Delay(0.4);
 }
 
 
