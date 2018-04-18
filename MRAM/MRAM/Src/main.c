@@ -38,6 +38,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
+#include "MRAM.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -45,6 +46,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi3;
+
+UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -55,15 +58,10 @@ SPI_HandleTypeDef hspi3;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI3_Init(void);
+static void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void write_enable (int enable);
-void write_status (uint8_t data);
-void read_status (uint8_t *status);
-void read_mem (uint16_t address, int size, uint8_t *buffer);
-void write_mem (uint16_t address, int size, uint8_t *buffer);
-void sleep (int sleep);
 
 /* USER CODE END PFP */
 
@@ -97,8 +95,17 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI3_Init();
+  MX_USART2_UART_Init();
 
   /* USER CODE BEGIN 2 */
+  uint8_t *status = 0;
+  uint8_t *init = "INITIALIZED\n";
+
+  init_mem();
+  HAL_UART_Transmit(&huart2, init, 12, 50);
+  read_status(status);
+  HAL_UART_Transmit(&huart2, status, 1, 50);
+  HAL_UART_Transmit(&huart2, init, 12, 50);
 
   /* USER CODE END 2 */
 
@@ -194,14 +201,31 @@ static void MX_SPI3_Init(void)
 
 }
 
+/* USART2 init function */
+static void MX_USART2_UART_Init(void)
+{
+
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
 /** Configure pins as 
         * Analog 
         * Input 
         * Output
         * EVENT_OUT
         * EXTI
-     PA2   ------> USART2_TX
-     PA3   ------> USART2_RX
 */
 static void MX_GPIO_Init(void)
 {
@@ -226,14 +250,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : USART_TX_Pin USART_RX_Pin */
-  GPIO_InitStruct.Pin = USART_TX_Pin|USART_RX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -251,150 +267,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-/*
- * Write enable/disable the MRAM chip. Enabling write will allow for
- * memory and status register to be written to; writing doesn't work unless
- * this is enabled.
- *
- * Parameter: enable - 1 if write enabled, 0 if not
- */
-void write_enable (int enable) {
-	uint8_t cmd;
-	if(enable == 1)
-		cmd = 0x06;
-	else
-		cmd = 0x04;
-
-	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-
-	//Send command
-	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
-
-	//Drive CS pin back to high
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-}
-
-/*
- * Write data to the status register. Function will only successfully
- * write if write enable has been executed.
- *
- * Parameter: data - 8bit data to write to the status register
- */
-void write_status (uint8_t data){
-	uint8_t cmd = 0x01;
-
-	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-
-	//Send command
-	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
-
-	//Send data to write to register
-	HAL_SPI_Transmit(&hspi3, &data, 1, 50);
-
-	//Drive CS pin back to high
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-}
-
-/*
- * Read data from the status register
- *
- * Parameter: data - 8bit data to write to the status register
- */
-void read_status (uint8_t *status){
-	uint8_t cmd = 0x05;
-
-	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-
-	//Send command
-	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
-
-	//Read status
-	while(HAL_SPI_Receive(&hspi3, status, 1, 50) != HAL_OK);
-
-	//Drive CS pin back to high
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-}
-
-/*
- * Read memory at a specified address. Function will continue to read until
- * the CS pin is set high.
- *
- * Parameter: address - 16bit address to read from
- * Parameter: size - size in bytes to read
- * Parameter: buffer - pointer in memory where the read data should be stored
- */
-void read_mem (uint16_t address, int size, uint8_t *buffer){
-	uint8_t cmd = 0x03;
-
-	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-
-	//Send read command
-	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
-
-	//Send address to read from in memory
-	HAL_SPI_Transmit(&hspi3, (uint8_t *)&address, 2, 50);
-
-	while(HAL_SPI_Receive(&hspi3, buffer, size, 50) != HAL_OK);
-
-	//Drive CS pin back to high to end reading communication
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-}
-
-/*
- * Write data into memory at a specified address.
- *
- * Parameter: address - 16bit address to write to
- * Parameter: size - size in bytes to write
- * Parameter: buffer - pointer in memory where data to write is stored
- */
-void write_mem (uint16_t address, int size, uint8_t *buffer){
-	uint8_t cmd = 0x02;
-
-	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-
-	//Send write command
-	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
-
-	//Send address to write to in memory
-	HAL_SPI_Transmit(&hspi3, (uint8_t *)&address, 2, 50);
-
-	//Send data
-	HAL_SPI_Transmit(&hspi3, buffer, size, 50);
-
-	//Drive CS pin back to high to end writing communication
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-}
-
-/*
- * Command the memory to go into sleep state or come out of a sleep state.
- *
- * Parameter: sleep - 1 if sleep, 0 if wake up
- */
-void sleep (int sleep){
-	uint8_t cmd;
-	if(sleep == 1)
-		cmd = 0xB9;
-	else
-		cmd = 0xAB;
-
-	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-
-	//Send command to wake up or sleep
-	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
-
-	//Drive CS pin back to high
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-	HAL_Delay(0.4);
-}
-
-
 
 /* USER CODE END 4 */
 
