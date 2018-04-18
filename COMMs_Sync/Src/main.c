@@ -38,7 +38,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
-
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -50,6 +52,22 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
+//Definition for boolean variables used in conditional statements
+#define TRUE 1
+#define FALSE 0
+
+//Standard definition for data buffer
+#define PACKET_SIZE 256 // bytes
+
+//Timeout used in Serial communication transmitting and receiving
+#define timeOut 0x0FFF
+
+//Structure declaring board settings, allows each board to keep track of other boards.
+struct board {
+	uint8_t data[PACKET_SIZE];
+	char letter;
+}STM_A, STM_B, STM_C;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -60,6 +78,8 @@ static void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+void printStringToConsole(char message[]);
+void clearArray(uint8_t *buffer);
 int Receive_Packet(char *pointer);
 void Parse_Packet(char *pointer, int packet_legnth);
 /* USER CODE END PFP */
@@ -97,7 +117,9 @@ int main(void)
   MX_USART2_UART_Init();
 
   /* USER CODE BEGIN 2 */
-
+  //Allocating 256 bytes of memory for received packets.
+  char * buffer;
+  buffer = (char*) malloc (PACKET_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -226,24 +248,54 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-int Receive_Packet(char buf[256])
-{
-	int received;
-	if(HAL_SPI_Receive(&hspi1, tempBuffer, numBytes, timeOut) == HAL_OK)
-	{
-		received = 1;
-	}
 
-
-
+// Description: Transmit a string over huart2. If solder bridges SB13 and SB14 are not removed,
+//				this will transmit a message to the STLink chip and can be printed on a serial monitor
+//				directly (such as the Arduino serial monitor). Otherwise, need to connect the huart2 pins to
+// 				an Ardunio an receive the message from that end.
+// Input: message to be transmitted
+void printStringToConsole(char message[]) {
+	HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut);
 }
 
 
+//Description: This function writes null bytes to the buffer array passed to it
+//Input: pointer to buffer that needs to be cleared
+void clearArray(uint8_t *buf){
+	for (int i = 0; i < PACKET_SIZE; i++) {
+		buf[i] = '\0';
+	}
+}
+
+// Description:
+//
+// Input:
+int Receive_Packet(char *pointer)
+{
+	int received;
+	uint8_t tempBuffer[PACKET_SIZE];
+	clearArray(tempBuffer);
+
+	if(HAL_UART_Receive(&huart1, tempBuffer, PACKET_SIZE, timeOut) == HAL_OK)
+	{
+		received = 1;
+	} else
+	{
+		received = 0;
+	}
+}
+
+// Description:
+//
+// Input:
 void Packet_Parse(char *pointer, int packet_legnth)
 {
 
 
 }
+
+
+
 /* USER CODE END 4 */
 
 /**

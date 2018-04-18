@@ -47,7 +47,7 @@
 #define BUS_FREQUENCY 84000000.0
 #define PRESCALER 42000.0
 #define NOT_SET -5
-#define INTERRUPT_PERIOD 30
+#define INTERRUPT_PERIOD 30 //default period into which time intervals will be broken into
 
 /* USER CODE END Includes */
 
@@ -60,9 +60,9 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 //Note to self: lock down these global variables somehow so that not EVERYONE can use them :')))
-int number_of_timer_repeats;
-int wanted_number_of_timer_repeats;
-int timer_remainder;
+int number_of_timer_repeats; //the current number of times the timer has triggered
+int wanted_number_of_timer_repeats; //the total number of times the timer OF DEFAULT PERIOD must go off
+int timer_remainder; //extra time needed after all 30 seconds segments
 
 /* USER CODE END PV */
 
@@ -72,7 +72,7 @@ static void MX_GPIO_Init(void);
 static void MX_TIM3_Init(void);
 
 static void MX_TIM3_Change_Period(int period);
-static void timer_period_to(int seconds);
+void timer_period_to(int seconds);
 
 static void set_timer_to_trigger_in(int seconds);
 static void MX_USART2_UART_Init(void);
@@ -118,7 +118,7 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   //HAL_TIM_Base_Start_IT(&htim3); //activates interrupt
-  set_timer_to_trigger_in(90);
+  set_timer_to_trigger_in(905);
   //testing changes in period and setting time through period
  /* timer_period_to(5);
   HAL_Delay(20000);
@@ -295,7 +295,10 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+/*
+ * Sets up action to be performed after a long time interval
+ * Parameters: seconds - time in seconds before action should be performed
+ */
 static void set_timer_to_trigger_in(int seconds)
 {
 	//deal with global variable
@@ -318,10 +321,13 @@ static void MX_TIM3_Change_Period(int period)
   }
 
 }
-
-static void timer_period_to(int seconds)
+/*
+ * Changes the timer period to trigger after a set number of seconds
+ * Params: seconds - number of seconds between each interrupt
+ */
+void timer_period_to(int seconds)
 {
-	int period = (int) (seconds*BUS_FREQUENCY/PRESCALER);
+	int period = (int) (seconds*BUS_FREQUENCY/PRESCALER) - 1;
 	MX_TIM3_Change_Period(period);
 }
 
