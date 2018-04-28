@@ -78,7 +78,6 @@ void TIM3_IRQHandler(void)
 
   /* USER CODE END TIM3_IRQn 0 */
   HAL_TIM_IRQHandler(&htim3);
-
   /* USER CODE BEGIN TIM3_IRQn 1 */
   //increments the number of times 30 seconds has elapsed at each trigger
   if (wanted_number_of_timer_repeats != NOT_SET &&
@@ -87,6 +86,7 @@ void TIM3_IRQHandler(void)
   {
 	  number_of_timer_repeats++;
   }
+  //sets time to remainder (increments)
   else if (wanted_number_of_timer_repeats != NOT_SET &&
 		  number_of_timer_repeats != NOT_SET &&
 		  number_of_timer_repeats == wanted_number_of_timer_repeats)
@@ -95,12 +95,14 @@ void TIM3_IRQHandler(void)
 	  number_of_timer_repeats++;
 
   }
+  //filler incrementation, to compensate for offset just as timer period is changed
   else if (wanted_number_of_timer_repeats != NOT_SET &&
   		  number_of_timer_repeats != NOT_SET &&
 		  number_of_timer_repeats == 1 + wanted_number_of_timer_repeats)
   {
 	  number_of_timer_repeats++;
   }
+  //performs needed action then turns off interrupts (until it's next set on)
   else if (wanted_number_of_timer_repeats != NOT_SET &&
   		  number_of_timer_repeats != NOT_SET &&
 		  number_of_timer_repeats == 2 + wanted_number_of_timer_repeats)

@@ -40,7 +40,6 @@
 #include "main.h"
 #include "stm32f4xx_hal.h"
 
-
 /* USER CODE BEGIN Includes */
 #define TRUE 1
 #define FALSE 0
@@ -56,7 +55,6 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
 
-
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 //Note to self: lock down these global variables somehow so that not EVERYONE can use them :')))
@@ -71,14 +69,15 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM3_Init(void);
 
-static void MX_TIM3_Change_Period(int period);
+
+/* USER CODE BEGIN PFP */
+/* Private function prototypes -----------------------------------------------*/
+static  void MX_TIM3_Change_Period(int period);
 void timer_period_to(int seconds);
 
 static void set_timer_to_trigger_in(int seconds);
 static void MX_USART2_UART_Init(void);
 
-/* USER CODE BEGIN PFP */
-/* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
 
@@ -118,7 +117,7 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   //HAL_TIM_Base_Start_IT(&htim3); //activates interrupt
-  set_timer_to_trigger_in(905);
+  set_timer_to_trigger_in(3605);
   //testing changes in period and setting time through period
  /* timer_period_to(5);
   HAL_Delay(20000);
@@ -166,12 +165,11 @@ void SystemClock_Config(void)
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = 16;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 8;
   RCC_OscInitStruct.PLL.PLLN = 336;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
   RCC_OscInitStruct.PLL.PLLQ = 7;
@@ -237,7 +235,6 @@ static void MX_TIM3_Init(void)
   }
 
 }
-
 
 /* USART2 init function */
 static void MX_USART2_UART_Init(void)
