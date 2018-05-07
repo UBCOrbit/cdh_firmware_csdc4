@@ -78,6 +78,7 @@ static void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 void printStringToConsole(char message[]);
 void clearArray(uint8_t *buffer);
 int Receive_Packet(char *pointer);
@@ -259,35 +260,36 @@ void printStringToConsole(char message[]) {
 }
 
 
-//Description: This function writes null bytes to the buffer array passed to it
-//Input: pointer to buffer that needs to be cleared
+// Description: This function writes null bytes to the buffer array passed to it
+// Input: pointer to buffer that needs to be cleared
 void clearArray(uint8_t *buf){
 	for (int i = 0; i < PACKET_SIZE; i++) {
 		buf[i] = '\0';
 	}
 }
 
-// Description:
-//
-// Input:
+// Description: Tries to receive a packet. If a packet is received, the function saves the packet at the input
+// 				pointer. Additionally, it returns 1 once the packet has been saved. The function returns 0 if
+//				it is unable to receive.
+// Input: pointer to where the packet is to be saved
+// Returns: Confirmation on successful reception of packet.
 int Receive_Packet(char *pointer)
 {
-	int received;
 	uint8_t tempBuffer[PACKET_SIZE];
 	clearArray(tempBuffer);
-
-	if(HAL_UART_Receive(&huart1, tempBuffer, PACKET_SIZE, timeOut) == HAL_OK)
-	{
-		received = 1;
-	} else
-	{
-		received = 0;
+	if (HAL_UART_Receive(&huart1, tempBuffer, PACKET_SIZE, timeOut) == HAL_OK) {
+		for (int i = 0; i < PACKET_SIZE; i += 1){
+			*(pointer + i) = tempBuffer[i];
+		}
+		return 1;
 	}
+	return 0;
+
 }
 
 // Description:
 //
-// Input:
+// Input: pointer to where the packet is saved, and the length of the packet
 void Packet_Parse(char *pointer, int packet_legnth)
 {
 
