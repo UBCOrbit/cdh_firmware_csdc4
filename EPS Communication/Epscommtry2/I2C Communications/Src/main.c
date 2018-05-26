@@ -57,6 +57,9 @@ UART_HandleTypeDef huart2;
 #define BAT_ADDRESS 0x2A
 
 #define DEFAULT_DATA 0x00
+#define STATUS_COMMAND 0x01
+#define ERROR_COMMAND 0x03
+#define MANUAL_RESET_COMMAND 0x80
 
 //EPS Module Telemetry Commands
 
@@ -90,8 +93,7 @@ UART_HandleTypeDef huart2;
 #define EPS_MANUAL_RESET_COMMAND 0x80
 
 //EPS get telemetry data values
-#define IIDIODE_OUT_DATA1 0xE2
-#define IIDIODE_OUT_DATA0 0x84
+#define IIDIODE_OUT_DATA1 0xE284
 #define VIDIODE_OUT_DATA1 0xE2
 #define VIDIODE_OUT_DATA0 0x80
 #define I3V3_DRW_DATA1 0xE2
@@ -268,12 +270,15 @@ static void MX_I2C1_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void getStatus(uint16_t address, uint8_t *data_received);
-void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], int bytes_returned, int delay);
+void getStatus(uint16_t address, uint8_t data_received[]);
+void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], uint8_t bytes_returned, int delay);
 void getError(uint8_t address, uint8_t data_received[]);
 void getTelemetry(uint8_t address, uint8_t command, uint8_t data1, uint8_t data0, uint8_t data_received[], uint8_t bytes_returned, uint8_t delay);
 void setPDMTimerLimit(uint8_t timerLimit, uint8_t selectedPDM);
 void manualReset(uint8_t address);
+uint16_t convertBATADC(uint8_t data[], uint8_t data1, uint8_t data0 );
+uint16_t convertEPSADC(uint8_t data[], uint8_t data1, uint8_t data0 );
+
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -321,8 +326,8 @@ int main(void)
 
   /* USER CODE BEGIN 3 */
 
-	  uint8_t returnData[2] = {0,0};
-	  uint8_t data1 =0;
+	  uint8_t returnData[4] = {0,0,0,0};
+	  uint8_t data1 = 0;
 	  uint8_t data0 = 0;
 	  uint8_t command = 0;
 	  uint8_t select = 0;
@@ -332,27 +337,31 @@ int main(void)
 	  int timer = 0;
 	  int PDM = 0;
 
-	  while(HAL_UART_Receive(&huart2, &select, 1, 50) != HAL_OK);
-	  HAL_UART_Transmit(&huart2, &select, 1, 50);
-	  while(HAL_UART_Receive(&huart2,(uint8_t *) &address, 2, 50) != HAL_OK);
+	  while(HAL_UART_Receive(&huart2, (uint8_t*)&select, 1, 50) != HAL_OK);
+	  HAL_UART_Transmit(&huart2, (uint8_t*)&select, 1, 50);
+	  while(HAL_UART_Receive(&huart2,(uint8_t *)&address, 2, 50) != HAL_OK);
 	  HAL_UART_Transmit(&huart2, (uint8_t *)&address, 2, 50);
 	  //Read Select and Address
 
 	  if (select == 's'){
 
+
+		  getStatus(address, returnData);
+		  /*
+		  Testing code
 		  uint8_t data0 = 0x10;
-		  	uint8_t data1 = 0xE2;
-		  	uint8_t data2= 0x80;
+		  uint8_t data1 = 0xE2;
+		  uint8_t data2= 0x80;
+		  HAL_I2C_Master_Transmit(&hi2c1, 0x54, (uint8_t*)&data0, 1, 50);
+		  HAL_I2C_Master_Transmit(&hi2c1, 0x54, (uint8_t*)&data1, 1, 50);
+		  HAL_I2C_Master_Transmit(&hi2c1, 0x54, (uint8_t*)&data2, 1, 50);
+		  HAL_Delay(15);
 
-		  	HAL_I2C_Master_Transmit(&hi2c1, 0x54, (uint8_t*)&data0, 1, 50);
-		  	HAL_I2C_Master_Transmit(&hi2c1, 0x54, (uint8_t*)&data1, 1, 50);
-		  	HAL_I2C_Master_Transmit(&hi2c1, 0x54, (uint8_t*)&data2, 1, 50);
-		  	HAL_Delay(15);
-
-		  	HAL_I2C_Master_Receive(&hi2c1, 0x54, returnData, 2, 50);
-		  	uint16_t received = (uint16_t)((returnData[0] + (returnData[1]*256))* 0.008993);
-		  	uint8_t send= 0b01000010;
+		  HAL_I2C_Master_Receive(&hi2c1, 0x54, returnData, 2, 50);
+		  uint16_t received = (uint16_t)((returnData[0] + (returnData[1]*256))* 0.008993);
+		  uint8_t send= 0b01000010;
 		  HAL_UART_Transmit(&huart2, (uint8_t*)&send, 1, 50);
+		   */
 
 	  }
 
@@ -368,29 +377,50 @@ int main(void)
 	  }
 
 	  else if (select == 't'){
-		  //Read command,data1,data0,returnbytes,delay
 
-		  while(HAL_UART_Receive(&huart2, &command, 1, 50) != HAL_OK);
-		  while(HAL_UART_Receive(&huart2, &data1, 1, 50) != HAL_OK);
-		  while(HAL_UART_Receive(&huart2, &data0, 1, 50) != HAL_OK);
-		  while(HAL_UART_Receive(&huart2, &returnBytes, 1, 50) != HAL_OK);
-		  while(HAL_UART_Receive(&huart2, &delay, 1, 50) != HAL_OK);
+		  while(HAL_UART_Receive(&huart2, (uint8_t*)&data1, 2, 50) != HAL_OK);
+		  HAL_UART_Transmit(&huart2, (uint8_t*)&data1, 2, 50);
+		  while(HAL_UART_Receive(&huart2,(uint8_t *)&data0, 2, 50) != HAL_OK);
+		  HAL_UART_Transmit(&huart2, (uint8_t *)&data0, 2, 50);
+		  while(HAL_UART_Receive(&huart2,(uint8_t *)&returnBytes, 2, 50) != HAL_OK);
+		  HAL_UART_Transmit(&huart2, (uint8_t *)&returnBytes, 2, 50);
+		  while(HAL_UART_Receive(&huart2,(uint8_t *)&delay, 4, 50) != HAL_OK);
+		  HAL_UART_Transmit(&huart2, (uint8_t *)&delay, 4, 50);
+
+		  //Read command,data1,data0,returnbytes,delay
+		  uint16_t convertedADC;
 
 		  getTelemetry(address,command,data1,data0,returnData,returnBytes,delay);
+
+		  if (address == EPS_ADDRESS){
+			  convertedADC = convertEPSADC(returnData,data1,data0);
+		  }
+		  else if (address == BAT_ADDRESS) {
+			  convertedADC = convertBATADC(returnData,data1,data0);
+		  }
+
 	  }
 
 	  else if (select == 'c'){
 		  // Read command,data1,returnbytes,delay
+		  while(HAL_UART_Receive(&huart2, (uint8_t*)&data1, 2, 50) != HAL_OK);
+		  HAL_UART_Transmit(&huart2, (uint8_t*)&data1, 2, 50);
+		  while(HAL_UART_Receive(&huart2,(uint8_t *)&returnBytes, 2, 50) != HAL_OK);
+		  HAL_UART_Transmit(&huart2, (uint8_t *)&returnBytes, 2, 50);
+		  while(HAL_UART_Receive(&huart2,(uint8_t *)&delay, 4, 50) != HAL_OK);
+		  HAL_UART_Transmit(&huart2, (uint8_t *)&delay, 4, 50);
+
 		  sendCommand(address,command,data1,returnData,returnBytes,delay);
 
 	  }
 	  else if (select == 'p'){
 		  // Read Timer Limit and PDM
+
 		  setPDMTimerLimit(timer,PDM);
 	  }
 
 	  else {
-		  printf("Command not recognized");
+		  // command not recognized
 	  }
   }
   /* USER CODE END 3 */
@@ -401,7 +431,6 @@ int main(void)
 */
 void SystemClock_Config(void)
 {
-
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
 
@@ -540,16 +569,17 @@ static void MX_GPIO_Init(void)
  *
  */
 
-void getStatus(uint16_t address, uint8_t *data_received) {
-	uint16_t bytes_returned = 2;
-	uint8_t data0 = 0x01;
-	uint8_t data1 = 0x00;
+void getStatus(uint16_t address, uint8_t data_received[]) {
 
-	while(HAL_I2C_Master_Transmit(&hi2c1, address, (uint8_t*)&data0, 1, 50) != HAL_OK);
+	uint8_t command = STATUS_COMMAND;
+	uint8_t data1 = DEFAULT_DATA;
+
+	while(HAL_I2C_Master_Transmit(&hi2c1, address, (uint8_t*)&command, 1, 50) != HAL_OK);
 	while(HAL_I2C_Master_Transmit(&hi2c1, address, (uint8_t*)&data1, 1, 50) != HAL_OK);
 	HAL_Delay(1);
 
-	while( HAL_I2C_Master_Receive(&hi2c1, address, data_received, bytes_returned, 50) != HAL_OK);
+	while(HAL_I2C_Master_Receive(&hi2c1, address, data_received, 2, 50) != HAL_OK);
+
 }
 
 
@@ -568,21 +598,16 @@ void getStatus(uint16_t address, uint8_t *data_received) {
  *	delay: the delay required for the command in milliseconds
  *
  */
-void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], int bytes_returned, int delay){
-
-	uint8_t send_data[2];
-
-	send_data[0] = command;
-	send_data[1] = data_sent;
+void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t data_received[], uint8_t bytes_returned, int delay){
 
 
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)&data_sent, 2, 50) != HAL_OK );
 
 	HAL_Delay(delay);
 
 	if(bytes_returned != 0){
 
-		while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) bytes_returned, (uint32_t) 50) != HAL_OK);
+		while( HAL_I2C_Master_Receive(&hi2c1, (uint16_t) address, data_received, (uint16_t) bytes_returned, 50) != HAL_OK);
 
 	}
 
@@ -605,13 +630,14 @@ void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t da
 
 void getError(uint8_t address, uint8_t data_received[]) {
 
-	uint8_t send_data[2];
 
-	send_data[0] = EPS_ERROR_COMMAND;		//Error data and command for eps and bat are the same
-	send_data[1] = DEFAULT_DATA;
+	uint8_t command = ERROR_COMMAND;
+	uint8_t data1 = DEFAULT_DATA;
 
 
-	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
+
+	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address, (uint8_t*)&command, 2, 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address, (uint8_t*)&data1, 2, 50) != HAL_OK );
 
 	HAL_Delay(1);
 
@@ -634,17 +660,15 @@ void getError(uint8_t address, uint8_t data_received[]) {
  */
 
 void getTelemetry(uint8_t address, uint8_t command, uint8_t data1, uint8_t data0, uint8_t data_received[], uint8_t bytes_returned, uint8_t delay){
-	uint8_t send_data[3];
-	send_data[0] = command;
-	send_data[1] = data1;
-	send_data[2] = data0;
 
-	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address, send_data, (uint16_t) 3, (uint32_t) 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address, (uint8_t*)&command, 3, 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address, (uint8_t*)&data1, 3,  50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address, (uint8_t*)&data0, 3, 50) != HAL_OK );
 	HAL_Delay(delay);
 
 	if(bytes_returned != 0){
 
-		while( HAL_I2C_Master_Receive(&hi2c1,  (uint16_t) address, data_received, (uint16_t)bytes_returned, (uint32_t) 50) != HAL_OK);
+		while( HAL_I2C_Master_Receive(&hi2c1,  (uint16_t) address, data_received, (uint16_t)bytes_returned, 50) != HAL_OK);
 
 	}
 
@@ -662,12 +686,15 @@ void getTelemetry(uint8_t address, uint8_t command, uint8_t data1, uint8_t data0
 void setPDMTimerLimit(uint8_t timerLimit, uint8_t selectedPDM) {
 
 	uint16_t address = EPS_ADDRESS;
-	uint8_t send_data[3];
-	send_data[0] = EPS_SET_PDMN_TIMER_LIMIT;
-	send_data[1] = selectedPDM;
-	send_data[2] = timerLimit;
 
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 3, (uint32_t) 50) != HAL_OK );
+	uint8_t command = EPS_SET_PDMN_TIMER_LIMIT;
+	uint8_t data1 = selectedPDM;
+	uint8_t data0 = timerLimit;
+
+
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)&command, 3, 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)&data1, 3, 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)&data0, 3, 50) != HAL_OK );
 	HAL_Delay(200);
 
 }
@@ -685,13 +712,250 @@ void setPDMTimerLimit(uint8_t timerLimit, uint8_t selectedPDM) {
 
 void manualReset(uint8_t address){
 
-	uint8_t send_data[2];
-	send_data[0] = EPS_MANUAL_RESET_COMMAND;
-	send_data[1] = DEFAULT_DATA;
 
-	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, send_data, (uint16_t) 2, (uint32_t) 50) != HAL_OK );
+	uint8_t command = MANUAL_RESET_COMMAND;
+	uint8_t data0 = DEFAULT_DATA;
+
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)&command, 2, 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1, (uint16_t) address, (uint8_t*)&data0, 2, 50) != HAL_OK );
 
 }
+
+/*
+ * Purpose:
+ * Converts raw ADC values into proper values through equations found on battery and EPS datasheets
+ *
+ * Parameters:
+ * @ ADCdata: The raw ADC value given from the EPS or BAT module
+ * @ data1: The Most significant piece of TLE Code
+ * @ data0: The Least significant piece of TLE Code
+ *
+ * Return:
+ * @ converted: The converted ADC value
+ *
+ */
+uint16_t convertBATADC(uint8_t ADCdata[], uint8_t data1, uint8_t data0 ) {
+	uint16_t TLECODE = (uint16_t)(data0 + (data1 * 256));
+	uint16_t adcResponse = (uint16_t)(ADCdata[0] + (ADCdata[1] * 256));
+	uint16_t converted = 0;
+
+	switch (TLECODE) {
+
+		case 0xE280:
+	      converted = adcResponse * 0.008993;
+	      break;
+	    case 0xE284:
+	      converted = adcResponse * 14.662757;
+	      break;
+	    case 0xE28E:
+	      if (adcResponse < 512) {
+	        converted = 1.0;
+	      } else {
+	        converted = 0.0;
+	      }
+	      break;
+	    case 0xE308:
+	      converted = 0.372434 * adcResponse - 273.15;
+	      break;
+	    case 0xE214:
+	      converted = 1.327547 * adcResponse;
+	      break;
+	    case 0xE210:
+	      converted = 0.005965 * adcResponse;
+	      break;
+	    case 0xE204:
+	      converted = 1.327547 * adcResponse;
+	      break;
+	    case 0xE200:
+	      converted = 0.004311 * adcResponse;
+	      break;
+	    case 0xE398:
+	      converted = 0.397600 * adcResponse - 238.57;
+	      break;
+	    case 0xE39F:
+	      if (adcResponse < 512) {
+	        converted = 1.0;
+	      } else {
+	        converted = 0.0;
+	      }
+	      break;
+	    case 0xE3A8:
+	      converted = 0.397600 * adcResponse - 238.57;
+	      break;
+	    case 0xE3AF:
+	      if (adcResponse < 512) {
+	        converted = 1.0;
+	      } else {
+	        converted = 0.0;
+	      }
+	      break;
+	    case 0xE3B8:
+	      converted = 0.397600 * adcResponse - 238.57;
+	      break;
+	    case 0xE3BF:
+	      if (adcResponse < 512) {
+	        converted = 1.0;
+	      } else {
+	        converted = 0.0;
+	      }
+	      break;
+	    default:
+	      converted = 0.0;
+	      break;
+
+	}
+
+
+	return converted;
+
+
+}
+
+uint16_t convertEPSADC(uint8_t ADCdata[], uint8_t data1, uint8_t data0 ){
+	uint16_t TLECODE = (uint16_t)(data0 + (data1 * 256));
+	uint16_t adcResponse = (uint16_t)(ADCdata[0] + (ADCdata[1] * 256));
+	uint16_t converted = 0;
+
+	switch (TLECODE) {
+
+	case 0xE284:
+	      converted = 14.662757 * adcResponse;
+	      break;
+	    case 0xE280:
+	      converted = 0.008993157 * adcResponse;
+	      break;
+	    case 0xE205:
+	      converted = 0.001327547 * adcResponse;
+	      break;
+	    case 0xE215:
+	      converted = 0.001327547 * adcResponse;
+	      break;
+	    case 0xE234:
+	      converted = 0.00207 * adcResponse;
+	      break;
+	    case 0xE230:
+	      converted = 0.01349 * adcResponse;
+	      break;
+	    case 0xE224:
+	      converted = 0.005237 * adcResponse;
+	      break;
+	    case 0xE220:
+	      converted = 0.008978 * adcResponse;
+	      break;
+	    case 0xE214:
+	      converted = 0.005237 * adcResponse;
+	      break;
+	    case 0xE210:
+	      converted = 0.005865 * adcResponse;
+	      break;
+	    case 0xE204:
+	      converted = 0.005237 * adcResponse;
+	      break;
+	    case 0xE200:
+	      converted = 0.004311 * adcResponse;
+	      break;
+	    case 0xE410:
+	      converted = 0.01349 * adcResponse;
+	      break;
+	    case 0xE414:
+	      converted = 0.001328 * adcResponse;
+	      break;
+	    case 0xE420:
+	      converted = 0.01349 * adcResponse;
+	      break;
+	    case 0xE424:
+	      converted = 0.001328 * adcResponse;
+	      break;
+	    case 0xE430:
+	      converted = 0.008993 * adcResponse;
+	      break;
+	    case 0xE434:
+	      converted = 0.001328 * adcResponse;
+	      break;
+	    case 0xE440:
+	      converted = 0.008993 * adcResponse;
+	      break;
+	    case 0xE444:
+	      converted = 0.001328 * adcResponse;
+	      break;
+	    case 0xE450:
+	      converted = 0.005865 * adcResponse;
+	      break;
+	    case 0xE454:
+	      converted = 0.001328 * adcResponse;
+	      break;
+	    case 0xE460:
+	      converted = 0.005865 * adcResponse;
+	      break;
+	    case 0xE464:
+	      converted = 0.001328 * adcResponse;
+	      break;
+	    case 0xE470:
+	      converted = 0.005865 * adcResponse;
+	      break;
+	    case 0xE474:
+	      converted = 0.001328 * adcResponse;
+	      break;
+	    case 0xE480:
+	      converted = 0.004311 * adcResponse;
+	      break;
+	    case 0xE484:
+	      converted = 0.001328 * adcResponse;
+	      break;
+	    case 0xE490:
+	      converted = 0.004311 * adcResponse;
+	      break;
+	    case 0xE494:
+	      converted = 0.001328 * adcResponse;
+	      break;
+	    case 0xE4A0:
+	      converted = 0.004311 * adcResponse;
+	      break;
+	    case 0xE4A4:
+	      converted = 0.001328 * adcResponse;
+	      break;
+	    case 0xE308:
+	      converted = 0.372434 * adcResponse - 273.15;
+	      break;
+	    case 0xE110:
+	      converted = 0.0249 * adcResponse;
+	      break;
+	    case 0xE114:
+	      converted = 0.0009775 * adcResponse;
+	      break;
+	    case 0xE115:
+	      converted = 0.0009775 * adcResponse;
+	      break;
+	    case 0xE120:
+	      converted = 0.0249 * adcResponse;
+	      break;
+	    case 0xE124:
+	      converted = 0.0009775 * adcResponse;
+	      break;
+	    case 0xE125:
+	      converted = 0.0009775 * adcResponse;
+	      break;
+	    case 0xE130:
+	      converted = 0.0099706 * adcResponse;
+	      break;
+	    case 0xE134:
+	      converted = 0.0009775 * adcResponse;
+	      break;
+	    case 0xE135:
+	      converted = 0.0009775 * adcResponse;
+	      break;
+	    default:
+	      converted = 0.0;
+	      break;
+
+	}
+
+
+	return converted;
+
+
+}
+
 
 
 /* USER CODE END 4 */
