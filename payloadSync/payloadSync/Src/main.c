@@ -35,6 +35,14 @@
   *
   ******************************************************************************
   */
+
+// TO-DOs:
+// (1) Error handling. Retries, error code logging
+// (2) Update boot-time for TX2 in heatbeatListen()
+// (3) Handle data after download is finished
+// (4) Review timeout periods for tx, rx
+// (5) Review command-specific behaviours
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
@@ -45,12 +53,12 @@
 /* USER CODE BEGIN Includes */
 #define TRUE 1
 #define FALSE 0
-#define WAIT_TIME 500
+#define WAIT_TIME 250
 #define TX_DELAY 50
-#define RX_DELAY 50
+#define RX_DELAY 100
+// To-do: Different time-out durations for different commands
 
 // Command Types
-#define EXECUTE_COMMAND 9
 #define POWEROFF        0
 #define START_DOWNLOAD  1
 #define START_UPLOAD    2
@@ -60,21 +68,12 @@
 #define CANCEL_DOWNLOAD 6
 #define FINALIZE_UPLOAD 7
 #define TAKE_PHOTO      8
+#define EXECUTE_COMMAND 9
 
 // Size Constants
 #define PACKETLEN_SIZE 2
-#define UPLOAD_PACKETLEN 256
-uint8_t DOWNLOAD_PACKETLEN = 256;
-
-// Success and error codes
-uint8_t success_codes[] = {
-		65, // photo
-		66, // execute
-		67, // download
-		68, // delete
-		69, // upload
-		70 // status query
-};
+uint32_t UPLOAD_PACKETLEN = 256;
+uint32_t DOWNLOAD_PACKETLEN = 256;
 
 uint8_t error_codes[] = {
 		129, // photo-passed time
@@ -93,15 +92,50 @@ uint8_t error_codes[] = {
 		142 // status-other
 };
 
-// Dummy Memory
+/* Structures -----------------------------------------------*/
+
+typedef struct Message {
+	uint8_t code;
+	uint16_t payloadLen;
+	uint8_t *payload;
+	struct Message *next;
+} Message;
+
+typedef struct Queue {
+	Message *front;
+	Message *back;
+	uint8_t numMessages;
+} Queue;
+
+
+/* Function Prototypes -----------------------------------------------*/
+int saveData(uint8_t* arr, uint8_t index, uint8_t dataLen); // Dummy Memory
+void readData(uint8_t* storage, uint8_t index, uint16_t dataLen);
+
+void heartbeatListen();
+Message *createMessage(uint8_t command_code, uint16_t data_len, uint8_t *data); // Queue operations
+
+void debugWrite(char *debug_msg, int msgLen);
+void sendData(uint8_t *data, int dataLen);
+void sendmHeader(Message *msg);
+uint8_t receiveData(uint8_t *reply, uint8_t numBytes);
+uint8_t isError(uint8_t comcode, uint8_t reply);
+
+void initQueue(Queue *que);
+Message *peekQueue(Queue *que);
+int emptyQueue(Queue *que);
+void enqueue(Message *newMessage, Queue *que);
+void dequeue(Queue *que);
+
+/* Temp Memory Functions -----------------------------------------------*/
 uint8_t memory[256];
 uint8_t memIndex = 0;
 
-int saveData(uint8_t *data, uint8_t index, uint8_t dataLen){
+int saveData(uint8_t *data, uint8_t dataLen){
 	for(int i = 0; i < dataLen; i++){
 		if(memIndex > 255)
 			return FALSE;
-		memory[memIndex] = data[index+i];
+		memory[memIndex] = data[i];
 		memIndex++;
 	}
 	return TRUE;
@@ -116,303 +150,312 @@ void readData(uint8_t *storage, uint8_t index, uint16_t dataLen){
 		}
 	}
 }
-/* USER CODE END Includes */
 
-/* Private variables ---------------------------------------------------------*/
+/* Private variables and Prototypes ---------------------------------------------------------*/
+UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
-UART_HandleTypeDef huart6; // Payload communication pin
-// To-do: pick a GPIO pin for powering on TX2
-// To-do: pick a GPIO pin for timeout monitoring
+UART_HandleTypeDef huart6;
 
-/* USER CODE BEGIN PV */
-/* Private variables ---------------------------------------------------------*/
-
-/* USER CODE END PV */
-
-/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART6_UART_Init(void);
 
-/* USER CODE BEGIN PFP */
-/* Structures -----------------------------------------------*/
-typedef struct {
-	uint8_t code;
-	uint16_t payloadLen;
-	uint8_t *payload;
-} Message;
+/* Heartbeat Monitor ---------------------------------------------*/
+// Listens for a heartbeat (half-period of 1 second) and power cycles if absent
+void heartbeatListen(){
 
-typedef struct Queue_Item {
-	  Message command;
-	  struct Queue_Item *next;
-} Queue_Item;
+	GPIO_PinState currState = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6);
+	HAL_Delay(1000);
 
-typedef struct {
-	Queue_Item *front;
-	Queue_Item *back;
-	  uint8_t numQueue_Items;
-} Queue;
-
-void getPacketLen(uint8_t *header, uint16_t *packetLen)
-void buildHeader(uint8_t *header, uint16_t packetLen)
-int saveData(uint8_t* arr, uint8_t index, uint8_t dataLen);
-void readData(uint8_t* storage, uint8_t index, uint16_t dataLen);
-Queue_Item *createQueue_Item(uint8_t command_code, uint16_t data_len, uint8_t *data);
-void initQueue(Queue *que);
-Queue_Item *peekQueue(Queue *que);
-int emptyQueue(Queue *que);
-void enqueue(Queue_Item *newQueue_Item, Queue *que);
-void dequeue(Queue *que);
-
-
-/* Queue Functions */
-Queue_Item *createQueue_Item(uint8_t command_code, uint16_t data_len, uint8_t *data){
-	Queue_Item *newQueue_Item = (Queue_Item*)malloc(sizeof(Queue_Item)); // Command type and parameter
-
-	memncpy(newQueue_Item, &command_code, 1);
-	memncpy(newQueue_Item + 1, &data_len, 2);
-	memncpy(newQueue_Item + 3, data, data_len);
-	newQueue_Item->next = NULL;
-
-	return newQueue_Item;
+	if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6) == currState){
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
+		HAL_Delay(1000);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);
+		HAL_Delay(10000); // To-do: adjust boot-time for TX2
+	}
+	else
+		return;
 }
 
+/* Queue Functions -----------------------------------------------*/
 void initQueue(Queue *que){
-  que->numQueue_Items = 0;
+  que->numMessages = 0;
   que->front = NULL;
   que->back = NULL;
 }
 
-Queue_Item *peekQueue(Queue *que){
+Message *peekQueue(Queue *que){
 	return que->front;
 }
 
 int emptyQueue(Queue *que){
-	if(que->numQueue_Items == 0)
+	if(que->numMessages == 0)
 		return 1;
 	else
 		return 0;
 }
 
-void enqueue(Queue_Item *newQueue_Item, Queue *que){
+void enqueue(Message *newMessage, Queue *que){
 	if(emptyQueue(que)){
-		que->front = newQueue_Item;
-		que->back = newQueue_Item;
+		que->front = newMessage;
+		que->back = newMessage;
 	}
 	else{
-		que->back = newQueue_Item;
+		(que->back)->next = newMessage;
+		que->back = newMessage;
 	}
 
-	que->numQueue_Items++;
+	que->numMessages++;
 }
 
 void dequeue(Queue *que){
-	Queue_Item *temp = que->front;
-	que->front = que->front->next;
+	Message *temp = que->front;
+	que->front = temp->next;
 	free(temp);
-	que->numQueue_Items--;
+	que->numMessages--;
 }
 
-/* Data Receiving and Sending */
-void sendData(uint8_t *data){
-	  while(HAL_UART_Transmit(&huart6, data, sizeof(*data), TX_DELAY) != HAL_OK){
+/* Message Functions  -----------------------------------------------*/
+
+Message *createMessage(uint8_t command_code, uint16_t data_len, uint8_t *data){
+	Message *newMessage = (Message*)malloc(sizeof(Message)); // Command type and parameter
+
+	newMessage->code = command_code;
+	newMessage->payloadLen = data_len;
+	newMessage->payload = data;
+	newMessage->next = NULL;
+
+	return newMessage;
+}
+
+void debugWrite(char *debug_msg, int msgLen){
+	while(HAL_UART_Transmit(&huart2, (uint8_t*)debug_msg, msgLen, TX_DELAY) != HAL_OK){
+		HAL_Delay(TX_DELAY);
+	}
+	HAL_Delay(100);
+}
+
+void sendData(uint8_t *data, int dataLen){
+	  char buffer[50];
+	  sprintf(buffer, "Sending message of length %i\n", dataLen);
+	  debugWrite(buffer, sizeof(buffer));
+	  while(HAL_UART_Transmit(&huart6, data, dataLen, TX_DELAY) != HAL_OK){
 		  HAL_Delay(TX_DELAY); // Wait 10ms before retry
+		  heartbeatListen();
 	  }
+}
+
+void sendmHeader(Message *msg){
+	uint8_t mHeader[3];
+	mHeader[0] = msg->code; // message code
+	mHeader[1] = (msg->payloadLen >> 0) & 0xFF;
+	mHeader[2] = (msg->payloadLen >> 8) & 0xFF;
+	sendData(mHeader, sizeof(mHeader));
+}
+
+uint8_t isError(uint8_t comcode, uint8_t reply){
+	if(reply == 0)
+		return FALSE;
+	else
+		return TRUE;
 }
 
 uint8_t receiveData(uint8_t *reply, uint8_t numBytes){
 /* Wait for a response -----------*/
-	  while(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY) != HAL_OK){
-		  /*if(timeOut()){
-			  return FALSE;
-			  // Power cycle them
-		  }*/
-	  }
-	  return TRUE;
+	char buffer[30];
+
+	while(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY) != HAL_OK){
+		sprintf(buffer, "Waiting for reply..\n");
+		debugWrite(buffer, sizeof(buffer));
+		HAL_Delay(RX_DELAY);
+		heartbeatListen();
+	}
+	sprintf(buffer, "Reply received!\n");
+	debugWrite(buffer, sizeof(buffer));
+	return TRUE;
 }
 
-/* Packet Header Functions */
-void getPacketLen(uint8_t *header, uint16_t *packetLen){
-	uint16_t temp = header[2];
-	temp = temp << 8;
-	temp = temp & header[1];
 
-	*packetLen = temp;
-}
+/* Operation Variables -----------------------------------------------*/
+uint32_t upload_index = 0; // upload progress tracker
 
-void buildHeader(uint8_t *header, uint16_t packetLen){
-	header = malloc(1+UPLOAD_PACKETLEN);
-	header[0] = SEND_PACKET;
-	header[2] = packetLen >> 8; // high 8 bits
-	header[1] = packetLen & 00001111;
-}
+/* Testing Variables -------------------------------*/
+char sampleData[] = "abcd";
+uint8_t sha256sum[] = { 0x88,0xD4,0x26,0x6F,0xD4,0xE6,0x33,0x8D,0x13,0xB8,0x45,0xFC,0xF2,0x89,0x57,0x9D,0x20,0x9C,0x89,0x78,0x23,0xB9,0x21,0x7D,0xA3,0xE1,0x61,0x93,0x6F,0x03,0x15,0x89 }; // pre-computed
 
-/* MAIN ----------------------------- */
 int main(void)
 {
-
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
   /* MCU Configuration----------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
   /* Configure the system clock */
   SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_USART6_UART_Init();
 
   /* Allocate and Initialize Queue */
-  Queue *commands = (Queue*)malloc(sizeof(Queue));
-  initQueue(commands);
+  Queue *commandQue = (Queue*)malloc(sizeof(Queue));
+  initQueue(commandQue);
 
   Queue *errors = (Queue*)malloc(sizeof(Queue));
   initQueue(errors);
+
+  debugWrite("Initialized queue\n", sizeof("Initialized queue\n"));
+  Message *command;
+  uint8_t shasum[32];
+  char buffer[100] = "";
+
+  /* File Upload debug ---------------------*/
+  /*
+  Message *command = createMessage(CANCEL_UPLOAD, 0, NULL);
+  enqueue(command, commandQue);
+  command = createMessage(START_UPLOAD, sizeof(sha256sum), sha256sum);
+  enqueue(command, commandQue);
+  command = createMessage(SEND_PACKET, sizeof(sampleData), (uint8_t*)sampleData);
+  enqueue(command, commandQue);
+
+  char *uploadPath = "uploadtest.txt";
+  command = createMessage(FINALIZE_UPLOAD, sizeof(*uploadPath),(uint8_t*)uploadPath);
+  enqueue(command, commandQue);
+    */
+
+  /* Take photo debug ---------------------*/
+  //Message *command = createMessage(TAKE_PHOTO, 0, NULL);
 
   /* Operational Loop ---------------- */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  /* Power on Payload ----------------------*/
-	  // To-do, GPIO power on
+	  /* Check if TX2 is alive */
+	  heartbeatListen();
 
-	  /* Extract command from queue and send it -------------*/
-	  Queue_Item *currItem = peekQueue(commands);
-	  Message *command = &(currItem->command);
-	  uint8_t commandCode = command->code;
+	  /* Check if command queue is empty */
+	  if(commandQue->numMessages > 0)
+		  command = peekQueue(commandQue);
+	  else{
+		  HAL_Delay(1000);
+		  sprintf(buffer, "Empty command queue\n");
+		  debugWrite(buffer, sizeof(buffer));
+		  break;
+	  }
 
-	  sendData((uint8_t*)command);
+	  /* Write message details to console */
+	  uint8_t comcode = command->code;
+	  uint16_t datalen = command->payloadLen;
+	  sprintf(buffer, "Debug message created with code %i and payload-len %i \n", comcode, datalen);
+	  debugWrite(buffer, sizeof(buffer));
 
-	  /* Code-specific behavior */
-	  uint8_t error = 0;
-	  uint8_t reply;
+	  /* Send Header -----------------*/
+      sendmHeader(command);
+	  debugWrite("Message sent\n", sizeof("Message sent\n"));
 
+	  /* Send Data ----------------*/
+	  if(datalen > 0)
+		  sendData(command->payload, datalen);
+
+	  /* File transfer variables */
 	  uint8_t *header;
-	  uint8_t *packet;
 	  uint16_t packetLen;
 	  uint8_t *data;
-	  uint16_t upload_index = 0;
 
-	  switch(commandCode){
+	  /* Response Handling --------------------*/
+	  uint8_t reply;
+	  switch(comcode){
 		  case START_DOWNLOAD:
+			  // To-do: Extract filename from filepath
+
 			  // Receive and parse success/error
 			  receiveData(&reply, 1);
-			  if(error){
-				  enqueue(currItem, errors);
-				  dequeue(commands);
-				  break;
+
+			  if(isError(START_DOWNLOAD, reply)){
+				  enqueue(command, errors);
+			  } else{
+				  // Receive 32 byte shasum
+				  receiveData(shasum, 32);
 			  }
-			  dequeue(commands);
 			  break;
 
 		  case START_UPLOAD:
-			  // Receive and parse success/error
 			  receiveData(&reply, 1);
-			  if(error){
-				  enqueue(currItem, errors);
-				  dequeue(commands);
+
+			  if(isError(START_UPLOAD, reply)){
+				  enqueue(command, errors);
 				  break;
 			  }
-			  // Initialize memory index of file
-			  // To-do: figure out where this comes from?
 			  upload_index = 0;
-			  dequeue(commands);
+			  dequeue(commandQue);
 			  break;
 
 		  case REQUEST_PACKET:
-			  // Extract packetLen
-			  header = malloc(1+PACKETLEN_SIZE);
-			  receiveData(header, 1+PACKETLEN_SIZE);
-			  getPacketLen(header, &packetLen);
+			  // Receive 1 byte response code
+			  receiveData(&reply, 1);
+			  if(isError(REQUEST_PACKET, reply)){
+				  enqueue(command, errors);
+			  }
+			  else{
+				  // Receive packet length and packet data
+				  receiveData(&packetLen, 2);
+				  data = malloc(packetLen);
+				  receiveData(data, packetLen);
 
-			  // Receive and save data
-			  data = malloc(packetLen);
-			  receiveData(data, packetLen);
-			  saveData(data, memIndex, packetLen);
-
-			  // Free data and header, dequeue the task
-			  free(data);
-			  free(header);
-			  dequeue(commands);
+				  // Save data
+				  saveData(data, packetLen);
+				  free(packetLen);
+			  }
 			  break;
 
 		  case SEND_PACKET:
-			  // Construct and send header
-			  header = malloc(1+PACKETLEN_SIZE);
-			  buildHeader(header, (uint16_t)UPLOAD_PACKETLEN);
-			  sendData(header);
-
-			  // Construct and send packet
-			  packet = malloc(UPLOAD_PACKETLEN);
-			  readData(packet, upload_index, UPLOAD_PACKETLEN);
-			  sendData(packet);
-
-			  // Free header and packet, increment memory index based on packet length
-			  free(header);
-			  free(packet);
-			  upload_index += UPLOAD_PACKETLEN;
-			  dequeue(commands);
+			  receiveData(&reply, 1);
+			  if(isError(SEND_PACKET, reply)){
+				  enqueue(command, errors);
+				  break;
+			  }
+			  upload_index += datalen;
 			  break;
 
 		  case CANCEL_UPLOAD:
-			  upload_index = 0;
-			  dequeue(commands);
+			  receiveData(&reply, 1);
+			  dequeue(commandQue);
 			  break;
 
 		  case FINALIZE_UPLOAD:
-			  upload_index = 0;
-			  dequeue(commands);
+			  receiveData(&reply, 1);
+			  dequeue(commandQue);
 			  break;
 
 		  case TAKE_PHOTO:
 			  receiveData(&reply, 1);
-			  if(error){
-				  queueError(currItem);
-				  dequeue(commands);
+			  if(isError(TAKE_PHOTO, reply)){
+				  enqueue(command, errors);
+				  debugWrite("Error Occurred\n", sizeof("Error Occurred\n"));
 			  }
 			  break;
 
 		  case EXECUTE_COMMAND:
 			  receiveData(&reply, 1);
-			  if(error){
-				  queueError(currItem);
-				  dequeue(commands);
+			  if(isError(EXECUTE_COMMAND, reply)){
+				  enqueue(command, errors);
 			  }
 			  break;
 	  }
-
+	  dequeue(commandQue);
+	  sprintf(buffer, "Command finished ---------\n");
+	  debugWrite(buffer, sizeof(buffer));
+	  HAL_Delay(500);
   }
-
-
   /* USER CODE END 3 */
 
 }
 
-/*
-void handleError(errCode){
-	switch(errCode){
-		case
-	}
-}
-*/
-
-/** System Clock Configuration
-*/
+/** System Clock Configuration*/
 void SystemClock_Config(void)
 {
 
@@ -467,6 +510,24 @@ void SystemClock_Config(void)
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
+/* USART1 init function */
+static void MX_USART1_UART_Init(void)
+{
+
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
 
 /* USART2 init function */
 static void MX_USART2_UART_Init(void)
@@ -520,25 +581,22 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4|LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  /*Configure GPIO pin : PC6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA4 LD2_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|LD2_Pin;
+  /*Configure GPIO pin : PC8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
 }
 
