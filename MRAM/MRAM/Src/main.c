@@ -98,14 +98,14 @@ int main(void)
   MX_USART2_UART_Init();
 
   /* USER CODE BEGIN 2 */
-  uint8_t *status = 0;
+  /*uint8_t *status = 0;
   uint8_t *init = "INITIALIZED\n";
 
   init_mem();
   HAL_UART_Transmit(&huart2, init, 12, 50);
   read_status(status);
   HAL_UART_Transmit(&huart2, status, 1, 50);
-  HAL_UART_Transmit(&huart2, init, 12, 50);
+  HAL_UART_Transmit(&huart2, init, 12, 50);*/
 
   /* USER CODE END 2 */
 
@@ -114,7 +114,10 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
-
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	  HAL_Delay(1000);
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	  HAL_Delay(1000);
   /* USER CODE BEGIN 3 */
 
   }
