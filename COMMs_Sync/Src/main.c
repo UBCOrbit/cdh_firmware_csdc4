@@ -38,9 +38,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -82,6 +80,7 @@ static void MX_USART2_UART_Init(void);
 void printStringToConsole(char message[]);
 void clearArray(uint8_t *buffer);
 int Receive_Packet(char *pointer);
+int Check_ID(char *pointer, int packet_length);
 void Parse_Packet(char *pointer, int packet_legnth);
 /* USER CODE END PFP */
 
@@ -240,10 +239,20 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : PA1 */
   GPIO_InitStruct.Pin = GPIO_PIN_1;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
@@ -268,15 +277,17 @@ void clearArray(uint8_t *buf){
 	}
 }
 
-// Description: Tries to receive a packet. If a packet is received, the function saves the packet at the input
-// 				pointer. Additionally, it returns 1 once the packet has been saved. The function returns 0 if
-//				it is unable to receive.
+// Description: Tries to receive a packet. If a packet is received, the function
+//				saves the packet at the input pointer. Additionally, it returns 1 once
+//        the packet has been saved. The function returns 0 if it is unable to
+//				receive.
 // Input: pointer to where the packet is to be saved
 // Returns: Confirmation on successful reception of packet.
-int Receive_Packet(char *pointer)
-{
+int Receive_Packet(char *pointer) {
+	// Creates temporary buffer for receiving the packet.
 	uint8_t tempBuffer[PACKET_SIZE];
 	clearArray(tempBuffer);
+	// Saves the packet in the temporary buffer.
 	if (HAL_UART_Receive(&huart1, tempBuffer, PACKET_SIZE, timeOut) == HAL_OK) {
 		for (int i = 0; i < PACKET_SIZE; i += 1){
 			*(pointer + i) = tempBuffer[i];
@@ -284,16 +295,37 @@ int Receive_Packet(char *pointer)
 		return 1;
 	}
 	return 0;
+}
+
+// Description: Checks whether the received packet follows the beginnign and
+// 				end protocol.
+// Input: Pointer to where the packet is to be saved and the length of the
+// 				packet.
+// Returns: The integer version of the ID. Will return 0 if the first two bits
+//				don't follow the start protocol. Additionally, the function turns on
+//				the LD2 led light if the start protocol is followed.
+int Check_ID(char *pointer, int packet_length) {
+
+	double holder[PACKET_SIZE];
+	char buffer1 = *(pointer);
+
+	for(int i = 7; 0 <= i; i --) {
+			holder[8 - i] = ((buffer1 >> i) & 0x01);
+	}
+
+
 
 }
 
 // Description:
 //
 // Input: pointer to where the packet is saved, and the length of the packet
-void Packet_Parse(char *pointer, int packet_legnth)
-{
-
-
+void Packet_Parse(char *pointer, int packet_legnth) {
+	char byte = 0x37;
+	int i;
+	for(i = 7; 0 <= i; i --) {
+			printf("%d\n", (byte >> i) & 0x01);
+	}
 }
 
 
