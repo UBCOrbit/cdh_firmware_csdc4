@@ -1,14 +1,12 @@
-// Description: Given a queue of commands from the ground-station, commands are sent to payload over
-//				UART6 one at a time. After a response is received, errors are saved in an error queue
-//				for later analysis.
-// Author: Carter Fang
-// Date: 2018-06-02
-// To-do: (1) Modify saving code when MRAM is implemented
-//		  (2) Modify delays (interval between commands, TX2 boot-time after reset)
-//		  (3) Test heartbeat when GPIO is connected
-//		  (4) Implement command pipeline with COMMS
-//		  (5) Figure out what to do with error queue, send to ground station?
-
+/*Description: Given a queue of commands received from the ground station, forwards the commands one at a time
+ * 			   to payload. Waits for a response and parses the reply. Errors are stored in a log with their
+ * 			   error code and the message data.
+ * Author: Carter Fang
+ * Date: 2018-06-02
+ * To-do: (1) Test Download - currently shasum isn't received
+ * 		  (2) Remove placeholders for saving functions
+ * 		  (3) Figure out what to do with error log
+ */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
@@ -44,7 +42,6 @@ static void MX_USART6_UART_Init(void);
 #define TX_DELAY 50
 #define RX_DELAY 100
 #define TX2_BOOT_DELAY 10000
-#define COMMAND_DELAY 500
 // Delay between commands
 // To-do: Different time-out durations for different commands
 
@@ -130,7 +127,7 @@ Message *createMessage(uint8_t command_code, uint16_t data_len, uint8_t *data); 
  * Input: Pointer to character array to be transmitted, 16-bit length of message
  * Output: Pointer to newly created message.
  */
-void debugWrite(char *debug_msg, int msgLen);
+void debugWrite(char *debug_msg);
 
 
 /* Description: Send data over UART6
@@ -250,23 +247,17 @@ Message *createMessage(uint8_t command_code, uint16_t data_len, uint8_t *data){
 	return newMessage;
 }
 
-void debugWrite(char *debug_msg, int msgLen){
-	while(HAL_UART_Transmit(&huart2, (uint8_t*)debug_msg, msgLen, TX_DELAY) != HAL_OK){
-		HAL_Delay(TX_DELAY);
-	}
-	HAL_Delay(100);
-}
-
-void debugWrite2(char *debug_msg){
+void debugWrite(char *debug_msg){
 	while(HAL_UART_Transmit(&huart2, (uint8_t*)debug_msg, strlen(debug_msg), TX_DELAY) != HAL_OK){
 		HAL_Delay(TX_DELAY);
 	}
 	HAL_Delay(100);
 }
+
 void sendData(uint8_t *data, int dataLen){
 	  char buffer[50];
 	  sprintf(buffer, "Sending message of length %i\n", dataLen);
-	  debugWrite2(buffer);
+	  debugWrite(buffer);
 	  while(HAL_UART_Transmit(&huart6, data, dataLen, TX_DELAY) != HAL_OK){
 		  HAL_Delay(TX_DELAY); // Wait 10ms before retry
 		  //heartbeatListen();
@@ -294,12 +285,16 @@ uint8_t handleError(Queue *errQue, Message *command, uint8_t *reply){
 
 void receiveData(uint8_t *reply, int numBytes){
 /* Wait for a response -----------*/
+	char buffer[30];
+
 	while(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY) != HAL_OK){
-		debugWrite2("Waiting for reply..\n");
+		sprintf(buffer, "Waiting for reply..\n");
+		debugWrite(buffer);
 		HAL_Delay(RX_DELAY);
 		//heartbeatListen();
 	}
-	debugWrite2("Reply received!\n");
+	sprintf(buffer, "Reply received!\n");
+	debugWrite(buffer);
 }
 
 uint8_t memory[64];
@@ -336,6 +331,10 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
@@ -350,14 +349,14 @@ int main(void)
   Queue *errors = NULL;
   errors = initQueue(errors);
 
-  debugWrite2("Initialized queue\n");
+  debugWrite("Initialized queue\n");
   //Message *command;
   uint8_t shasum[32];
   char buffer[100] = "";
 
   /* File Upload debug ---------------------*/
-/*
-  command = createMessage(CANCEL_UPLOAD, 0, NULL);
+  /*
+  Message *command = createMessage(CANCEL_UPLOAD, 0, NULL);
   enqueue(command, commandQue);
   command = createMessage(START_UPLOAD, sizeof(sha256sum), sha256sum);
   enqueue(command, commandQue);
@@ -365,18 +364,10 @@ int main(void)
   enqueue(command, commandQue);
   command = createMessage(CANCEL_UPLOAD, 0, NULL);
   enqueue(command, commandQue);
-*/
-
-  /* File Download debug ---------------------*/
-  command = createMessage(CANCEL_DOWNLOAD, 0, NULL);
-  enqueue(command, commandQue);
-  char *filepath = "test.txt";
-  command = createMessage(START_DOWNLOAD, strlen(filepath), (uint8_t*)filepath);
-  enqueue(command, commandQue);
-  command = createMessage(REQUEST_PACKET, 0, NULL);
-  enqueue(command, commandQue);
-  command = createMessage(CANCEL_DOWNLOAD, 0, NULL);
-  enqueue(command, commandQue);
+  buffer[0] = '\0';
+  */
+  //sprintf(buffer, "Commands entered.\n");
+  //debugWrite(buffer, sizeof(buffer));
 
   //char *uploadPath = "uploadtest.txt";
   //command = createMessage(FINALIZE_UPLOAD, sizeof(*uploadPath),(uint8_t*)uploadPath);
@@ -386,31 +377,38 @@ int main(void)
   /* Take photo debug ---------------------*/
   //Message *command = createMessage(TAKE_PHOTO, 0, NULL);
   //enqueue(command, commandQue);
-
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
   while (1)
   {
+  /* USER CODE END WHILE */
+	  //debugWrite("Testing..\n",sizeof("Testing..\n"));
+	  //HAL_Delay(1000);
 	  /* Check if TX2 is alive --------------------*/
-	  heartbeatListen();
-
+	  //heartbeatListen();
+	  //debugWrite("Entered loop..\n",sizeof("Entered loop..\n"));
 	  /* Check if command queue is empty */
 	  if(commandQue->numMessages > 0)
 		  command = peekQueue(commandQue);
 	  else{
 		  HAL_Delay(1000);
-		  debugWrite2("Empty command queue\n");
+		  buffer[0] = '\0';
+		  sprintf(buffer, "Empty command queue\n");
+		  debugWrite(buffer);
 		  break;
 	  }
 
-	  debugWrite2("Command Start --------------\n");
 	  /* Write message details to console */
 	  uint8_t comcode = command->code;
 	  uint16_t datalen = command->payloadLen;
 	  sprintf(buffer, "Debug message created with code %i and payload-len %i \n", comcode, datalen);
-	  debugWrite2(buffer);
+	  debugWrite(buffer);
 
 	  /* Send Header -----------------*/
 	  sendmHeader(command);
-	  debugWrite2("Message sent\n");
+	  buffer[0] = '\0';
+	  sprintf(buffer, "Message sent\n");
+	  debugWrite(buffer);
 
 	  /* Send Data ----------------*/
 	  if(datalen > 0)
@@ -432,10 +430,8 @@ int main(void)
 			  receiveData(&reply, 1);
 			  if(!handleError(errors, command, &reply)){
 				  // If no error, receive 32 byte shasum
-				  //debugWrite2("Receiving shasum..\n");
-				  receiveData(shasum, 2); // To-do: check shasum reception
+				  receiveData(shasum, 32);
 			  }
-			  debugWrite2("Shasum received\n");
 			  break;
 
 		  case START_UPLOAD:
@@ -448,10 +444,8 @@ int main(void)
 
 		  case REQUEST_PACKET:
 			  receiveData(&reply, 1);
-			  if(handleError(errors, command, &reply)){
-				  debugWrite2("Error\n");
+			  if(handleError(errors, command, &reply))
 				  break;
-			  }
 			  else{
 				  // If no error, parse packet length
 				  receiveData(packetLenArr, 2);
@@ -461,9 +455,6 @@ int main(void)
 
 				  // Use packet length to receive incoming data
 				  receiveData(data, packetLen);
-				  char buffer[50];
-				  sprintf(buffer, "Packet received with length %i\n",packetLen);
-				  debugWrite2(buffer);
 
 				  // Save data
 				  saveData(data, packetLen); // To-do: Change saving function (currently a dummy)
@@ -484,11 +475,6 @@ int main(void)
 			  handleError(errors, command, &reply);
 			  break;
 
-		  case CANCEL_DOWNLOAD:
-			  receiveData(&reply, 1);
-			  handleError(errors, command, &reply);
-			  break;
-
 		  case FINALIZE_UPLOAD:
 			  receiveData(&reply, 1);
 			  break;
@@ -504,8 +490,7 @@ int main(void)
 			  break;
 	  }
 	  dequeue(commandQue);
-	  debugWrite2("Command End --------------\n");
-	  HAL_Delay(COMMAND_DELAY);
+	  HAL_Delay(250);
   /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
