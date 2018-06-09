@@ -13,19 +13,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart6;
-
-/* USER CODE BEGIN PV */
-/* Private variables ---------------------------------------------------------*/
-
-/* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -34,15 +26,12 @@ static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART6_UART_Init(void);
 
-
-/* USER CODE BEGIN Includes */
 #define TRUE 1
 #define FALSE 0
 #define WAIT_TIME 250
 #define TX_DELAY 50
 #define RX_DELAY 100
 #define TX2_BOOT_DELAY 10000
-// Delay between commands
 // To-do: Different time-out durations for different commands
 
 // Command Types
@@ -112,7 +101,7 @@ uint8_t saveData(uint8_t *data, uint8_t dataLen); // Dummy Memory
  * 				This function checks for two consecutive beats over PCA8 and resets the TX2
  * 				over PCA6 if it's not observed.
  */
-//void heartbeatListen();
+void heartbeatListen();
 
 
 /* Description: Populate a message struct with given command code, data length and data pointer
@@ -255,12 +244,9 @@ void debugWrite(char *debug_msg){
 }
 
 void sendData(uint8_t *data, int dataLen){
-	  char buffer[50];
-	  sprintf(buffer, "Sending message of length %i\n", dataLen);
-	  debugWrite(buffer);
 	  while(HAL_UART_Transmit(&huart6, data, dataLen, TX_DELAY) != HAL_OK){
 		  HAL_Delay(TX_DELAY); // Wait 10ms before retry
-		  //heartbeatListen();
+		  heartbeatListen(); // Check if still alive
 	  }
 }
 
@@ -285,16 +271,10 @@ uint8_t handleError(Queue *errQue, Message *command, uint8_t *reply){
 
 void receiveData(uint8_t *reply, int numBytes){
 /* Wait for a response -----------*/
-	char buffer[30];
-
 	while(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY) != HAL_OK){
-		sprintf(buffer, "Waiting for reply..\n");
-		debugWrite(buffer);
 		HAL_Delay(RX_DELAY);
-		//heartbeatListen();
+		heartbeatListen(); // Check if still alive
 	}
-	sprintf(buffer, "Reply received!\n");
-	debugWrite(buffer);
 }
 
 uint8_t memory[64];
@@ -349,66 +329,30 @@ int main(void)
   Queue *errors = NULL;
   errors = initQueue(errors);
 
-  debugWrite("Initialized queue\n");
-  //Message *command;
   uint8_t shasum[32];
-  char buffer[100] = "";
+  //char buffer[100] = "";
 
-  /* File Upload debug ---------------------*/
-  /*
-  Message *command = createMessage(CANCEL_UPLOAD, 0, NULL);
-  enqueue(command, commandQue);
-  command = createMessage(START_UPLOAD, sizeof(sha256sum), sha256sum);
-  enqueue(command, commandQue);
-  command = createMessage(SEND_PACKET, sizeof(sampleData), (uint8_t*)sampleData);
-  enqueue(command, commandQue);
-  command = createMessage(CANCEL_UPLOAD, 0, NULL);
-  enqueue(command, commandQue);
-  buffer[0] = '\0';
-  */
-  //sprintf(buffer, "Commands entered.\n");
-  //debugWrite(buffer, sizeof(buffer));
-
-  //char *uploadPath = "uploadtest.txt";
-  //command = createMessage(FINALIZE_UPLOAD, sizeof(*uploadPath),(uint8_t*)uploadPath);
-  //enqueue(command, commandQue);
-
-
-  /* Take photo debug ---------------------*/
-  //Message *command = createMessage(TAKE_PHOTO, 0, NULL);
-  //enqueue(command, commandQue);
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
   while (1)
   {
   /* USER CODE END WHILE */
-	  //debugWrite("Testing..\n",sizeof("Testing..\n"));
-	  //HAL_Delay(1000);
+
 	  /* Check if TX2 is alive --------------------*/
-	  //heartbeatListen();
-	  //debugWrite("Entered loop..\n",sizeof("Entered loop..\n"));
+	  heartbeatListen();
+
 	  /* Check if command queue is empty */
 	  if(commandQue->numMessages > 0)
 		  command = peekQueue(commandQue);
 	  else{
-		  HAL_Delay(1000);
-		  buffer[0] = '\0';
-		  sprintf(buffer, "Empty command queue\n");
-		  debugWrite(buffer);
+		  HAL_Delay(1000); // Empty command queue - exit loop
 		  break;
 	  }
 
-	  /* Write message details to console */
+	  /* Save message details */
 	  uint8_t comcode = command->code;
 	  uint16_t datalen = command->payloadLen;
-	  sprintf(buffer, "Debug message created with code %i and payload-len %i \n", comcode, datalen);
-	  debugWrite(buffer);
 
 	  /* Send Header -----------------*/
 	  sendmHeader(command);
-	  buffer[0] = '\0';
-	  sprintf(buffer, "Message sent\n");
-	  debugWrite(buffer);
 
 	  /* Send Data ----------------*/
 	  if(datalen > 0)
