@@ -5,7 +5,7 @@
   ******************************************************************************
   ** This notice applies to any and all portions of this file
   * that are not between comment pairs USER CODE BEGIN and
-  * USER CODE END. Other portions of this file, whether 
+  * USER CODE END. Other portions of this file, whether
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
@@ -56,6 +56,7 @@ UART_HandleTypeDef huart2;
 
 //Standard definition for data buffer
 #define PACKET_SIZE 256 // bytes
+#define BYTE_SIZE 8 // number of bits in a byte
 
 //Timeout used in Serial communication transmitting and receiving
 #define timeOut 0x0FFF
@@ -78,10 +79,12 @@ static void MX_USART2_UART_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 void printStringToConsole(char message[]);
-void clearArray(uint8_t *buffer);
-int Receive_Packet(char *pointer);
-int Check_ID(char *pointer, int packet_length);
-void Parse_Packet(char *pointer, int packet_legnth);
+void clearArray(char *buf);
+print_buffer(char *buf, int size);
+uint8_t receive_packet(char *pointer);
+uint8_t check_start_protocol(char *pointer);
+char check_id(char *pointer, int packet_length);
+void parse_packet(char *pointer, int packet_legnth);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -118,16 +121,23 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   //Allocating 256 bytes of memory for received packets.
+  uint8_t check;
   char * buffer;
   buffer = (char*) malloc (PACKET_SIZE);
-  /* USER CODE END 2 */
+
+  // Start the program with the light turned off.
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
   /* USER CODE END WHILE */
-
+  check = receive_packet(buffer);
+  // Turns on light if the receive packet function signals that it received a packet.
+  if (check == 1) {
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET); // Note: had to manually configure the LD2 pin in the configuration part of this file.
+  }
   /* USER CODE BEGIN 3 */
 
   }
@@ -143,13 +153,13 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
 
-    /**Configure the main internal regulator output voltage 
+    /**Configure the main internal regulator output voltage
     */
   __HAL_RCC_PWR_CLK_ENABLE();
 
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
 
-    /**Initializes the CPU, AHB and APB busses clocks 
+    /**Initializes the CPU, AHB and APB busses clocks
     */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
@@ -160,7 +170,7 @@ void SystemClock_Config(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-    /**Initializes the CPU, AHB and APB busses clocks 
+    /**Initializes the CPU, AHB and APB busses clocks
     */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
@@ -174,11 +184,11 @@ void SystemClock_Config(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-    /**Configure the Systick interrupt time 
+    /**Configure the Systick interrupt time
     */
   HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
 
-    /**Configure the Systick 
+    /**Configure the Systick
     */
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
 
@@ -224,9 +234,9 @@ static void MX_USART2_UART_Init(void)
 
 }
 
-/** Configure pins as 
-        * Analog 
-        * Input 
+/** Configure pins as
+        * Analog
+        * Input
         * Output
         * EVENT_OUT
         * EXTI
@@ -249,7 +259,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA5 */
-  GPIO_InitStruct.Pin = GPIO_PIN_5;
+  GPIO_InitStruct.Pin = LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -264,17 +274,29 @@ static void MX_GPIO_Init(void)
 //				directly (such as the Arduino serial monitor). Otherwise, need to connect the huart2 pins to
 // 				an Ardunio an receive the message from that end.
 // Input: message to be transmitted
-void printStringToConsole(char message[]) {
+void print_string_to_console(char message[]) {
 	HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut);
 }
 
 
 // Description: This function writes null bytes to the buffer array passed to it
 // Input: pointer to buffer that needs to be cleared
-void clearArray(uint8_t *buf){
+void clear_array(char *buf) {
 	for (int i = 0; i < PACKET_SIZE; i++) {
 		buf[i] = '\0';
 	}
+}
+
+// Description: Uses the print_string_to_console function to print the contents
+//        of the buffer to the serial monitor.
+// Input: Pointer the to buffer to be printed and the length of the buffer
+//      (number of char elements in the buffer)
+void print_buffer(char *buf, int size) {
+  char temp;
+  for (int i = 0; i < size; i++) {
+    temp = *(buf + i);
+    print_string_to_console(temp);
+  }
 }
 
 // Description: Tries to receive a packet. If a packet is received, the function
@@ -283,7 +305,7 @@ void clearArray(uint8_t *buf){
 //				receive.
 // Input: pointer to where the packet is to be saved
 // Returns: Confirmation on successful reception of packet.
-int Receive_Packet(char *pointer) {
+uint8_t receive_packet(char *pointer) {
 	// Creates temporary buffer for receiving the packet.
 	uint8_t tempBuffer[PACKET_SIZE];
 	clearArray(tempBuffer);
@@ -297,34 +319,63 @@ int Receive_Packet(char *pointer) {
 	return 0;
 }
 
+// Description: Checks whether the packet follows the correct start bit
+//        protocol.
+// Input: Pointer to where the packet is stored.
+uint8_t check_start_protocol(char *pointer) {
+
+	uint8_t holder[BYTE_SIZE];
+  char buffer = *pointer;
+  for (int i = 7; 0 <= i; i --) {
+    holder[8 - i] = ((buffer >> i) & 0x01);
+  }
+  if ((holder[0] == 0) && (holder[1] == 1)) {
+    return 1;
+  }
+  else {
+    return 0;
+  }
+}
+
 // Description: Checks whether the received packet follows the beginnign and
 // 				end protocol.
 // Input: Pointer to where the packet is to be saved and the length of the
 // 				packet.
-// Returns: The integer version of the ID. Will return 0 if the first two bits
-//				don't follow the start protocol. Additionally, the function turns on
-//				the LD2 led light if the start protocol is followed.
-int Check_ID(char *pointer, int packet_length) {
+// Returns: The char version of the ID.
+char check_id(char *pointer) {
 
-	double holder[PACKET_SIZE];
+	uint8_t holder1[BYTE_SIZE];
+  uint8_t holder2[BYTE_SIZE];
 	char buffer1 = *(pointer);
 	char buffer2 = *(pointer + 1);
+  int temp;
+  char output;
 
-	for(int i = 7; 0 <= i; i --) {
-			holder[8 - i] = ((buffer1 >> i) & 0x01);
+	for (int i = 7; 0 <= i; i --) {
+			holder1[8 - i] = ((buffer1 >> i) & 0x01);
+      holder2[8 - i] = ((buffer1 >> i) & 0x01);
 	}
 
+  temp = ((holder1[2] * (2**7)) +
+          (holder1[3] * (2**6)) +
+          (holder1[4] * (2**5)) +
+          (holder1[5] * (2**4)) +
+          (holder1[6] * (2**3)) +
+          (holder1[7] * (2**2)) +
+          (holder2[0] * (2**1)) +
+          (holder2[1] * (2**0)));
+
+  output = (char)temp;
+  return output;
 }
+
+
 
 // Description:
 //
 // Input: pointer to where the packet is saved, and the length of the packet
-void Packet_Parse(char *pointer, int packet_legnth) {
-	char byte = 0x37;
-	int i;
-	for(i = 7; 0 <= i; i --) {
-			printf("%d\n", (byte >> i) & 0x01);
-	}
+void packet_parse(char *pointer, int packet_legnth) {
+
 }
 
 
@@ -343,7 +394,7 @@ void _Error_Handler(char * file, int line)
   while(1)
   {
   }
-  /* USER CODE END Error_Handler_Debug */ 
+  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef USE_FULL_ASSERT
@@ -368,10 +419,10 @@ void assert_failed(uint8_t* file, uint32_t line)
 
 /**
   * @}
-  */ 
+  */
 
 /**
   * @}
-*/ 
+*/
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
