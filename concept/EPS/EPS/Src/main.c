@@ -54,7 +54,7 @@ UART_HandleTypeDef huart2;
 
 //I2C Addresses for EPS and Battery
 #define EPS_ADDRESS 0x2B
-#define BAT_ADDRESS 0x2A
+#define BAT_ADDRESS 0x54
 
 //Common Commands
 #define DEFAULT_DATA 0x00
@@ -182,8 +182,9 @@ void sendCommand(uint8_t address, uint8_t command, uint8_t data_sent, uint8_t da
 void getError(uint8_t address, uint8_t data_received[]);
 void getTelemetry(uint8_t address, uint8_t data1, uint8_t data0, uint8_t data_received[], uint8_t bytes_received);
 void manualReset(uint8_t address);
-uint16_t convertBATADC(uint8_t data[], uint8_t data1, uint8_t data0 );
-uint16_t convertEPSADC(uint8_t data[], uint8_t data1, uint8_t data0 );
+void convertCommand(uint16_t to_convert, uint8_t converted[]);
+double convertEPSADC(uint8_t ADCdata[], uint16_t telem_code);
+double convertBATADC(uint8_t ADCdata[], uint16_t telem_code);
 
 /* USER CODE END PFP */
 
@@ -219,6 +220,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
+
 
   /* USER CODE BEGIN 2 */
 
@@ -279,27 +281,24 @@ int main(void)
 
 	  else if (select == 't'){
 
-		  while(HAL_UART_Receive(&huart2, (uint8_t*)&data1, 2, 50) != HAL_OK);
-		  HAL_UART_Transmit(&huart2, (uint8_t*)&data1, 2, 50);
-		  while(HAL_UART_Receive(&huart2,(uint8_t *)&data0, 2, 50) != HAL_OK);
-		  HAL_UART_Transmit(&huart2, (uint8_t *)&data0, 2, 50);
-		  while(HAL_UART_Receive(&huart2,(uint8_t *)&returnBytes, 2, 50) != HAL_OK);
-		  HAL_UART_Transmit(&huart2, (uint8_t *)&returnBytes, 2, 50);
-		  while(HAL_UART_Receive(&huart2,(uint8_t *)&delay, 4, 50) != HAL_OK);
-		  HAL_UART_Transmit(&huart2, (uint8_t *)&delay, 4, 50);
+		  while(HAL_UART_Receive(&huart2, (uint8_t*)&data1, 1, 50) != HAL_OK);
+		  HAL_UART_Transmit(&huart2, (uint8_t*)&data1, 1, 50);
+		  while(HAL_UART_Receive(&huart2,(uint8_t *)&data0, 1, 50) != HAL_OK);
+		  HAL_UART_Transmit(&huart2, (uint8_t *)&data0, 1, 50);
 
 		  //Read command,data1,data0,returnbytes,delay
 		  uint16_t convertedADC;
 
-		  getTelemetry(address,data1,data0,returnData,returnBytes);
+		  getTelemetry(address,data1,data0,returnData,2);
 
 		  if (address == EPS_ADDRESS){
-			  convertedADC = convertEPSADC(returnData,data1,data0);
+			  //convertedADC = convertEPSADC(returnData,data1,data0);
 		  }
 		  else if (address == BAT_ADDRESS) {
-			  convertedADC = convertBATADC(returnData,data1,data0);
+			 // convertedADC = convertBATADC(returnData,data1,data0);
 		  }
 
+		  HAL_UART_Transmit(&huart2, (uint8_t *)&convertedADC, 2, 50);
 	  }
 
 	  else if (select == 'c'){
@@ -530,7 +529,7 @@ void getError(uint8_t address, uint8_t data_received[]) {
 
 	HAL_Delay(1);
 
-	while( HAL_I2C_Master_Receive(&hi2c1,  (uint16_t) (address<<1) & 0x01, data_received, (uint16_t) 2, (uint32_t) 50) != HAL_OK);
+	while( HAL_I2C_Master_Receive(&hi2c1,  (uint16_t) (address<<1) | 0x01, data_received, (uint16_t) 2, (uint32_t) 50) != HAL_OK);
 }
 
 
@@ -551,13 +550,15 @@ void getError(uint8_t address, uint8_t data_received[]) {
 void getTelemetry(uint8_t address, uint8_t data1, uint8_t data0, uint8_t data_received[], uint8_t bytes_received){
 	uint8_t command = GET_TELEMETRY;
 
-	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address<<1, (uint8_t*)&command, 3, 50) != HAL_OK );
-	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address<<1, (uint8_t*)&data1, 3,  50) != HAL_OK );
-	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address<<1, (uint8_t*)&data0, 3, 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address<<1, (uint8_t*)&command, 1, 50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address<<1, (uint8_t*)&data1, 1,  50) != HAL_OK );
+	while( HAL_I2C_Master_Transmit(&hi2c1,  (uint16_t) address<<1, (uint8_t*)&data0, 1, 50) != HAL_OK );
 	HAL_Delay(15);
 
+
+
 	if(bytes_received != 0){
-		while( HAL_I2C_Master_Receive(&hi2c1,  (uint16_t) (address<<1) & 0x01, data_received, (uint16_t)bytes_received, 50) != HAL_OK);
+		while( HAL_I2C_Master_Receive(&hi2c1,  (uint16_t) (address<<1) | 0x01, data_received, (uint16_t)bytes_received, 50) != HAL_OK);
 	}
 }
 
@@ -586,17 +587,15 @@ void manualReset(uint8_t address){
  * 	Converts raw ADC values into proper values through equations found on battery datasheet
  *
  * 	Parameters:
- * 		ADCdata: The raw ADC value given from the EPS or BAT module
- * 		data1: The Most significant piece of TLE Code
- * 		data0: The Least significant piece of TLE Code
+ * 		ADCdata: - raw ADC value given from the EPS or BAT module
+ * 		telem_code - two byte integer representing which telemetry was gathered
  *
  * 	Return:
  * 		converted: The converted ADC value
  */
-uint16_t convertBATADC(uint8_t ADCdata[], uint8_t data1, uint8_t data0 ) {
-	uint16_t telem_code = (uint16_t)data0 + ((uint16_t)data1 * 256);
+double convertBATADC(uint8_t ADCdata[], uint16_t telem_code) {
 	uint16_t adcResponse = (uint16_t)ADCdata[0] + ((uint16_t)ADCdata[1] * 256);
-	uint16_t converted = 0;
+	double converted = 0.0;
 
 	switch (telem_code) {
 		case 0xE280: //battery output voltage
@@ -666,17 +665,15 @@ uint16_t convertBATADC(uint8_t ADCdata[], uint8_t data1, uint8_t data0 ) {
  * 	Converts raw ADC values into proper values through equations found on EPS datasheet
  *
  * 	Parameters:
- * 		ADCdata: The raw ADC value given from the EPS or BAT module
- * 		data1: The Most significant piece of TLE Code
- * 		data0: The Least significant piece of TLE Code
+ * 		ADCdata: - raw ADC value given from the EPS or BAT module
+ * 		telem_code - two byte integer representing which telemetry was gathered
  *
  * 	Return:
  * 		converted: The converted ADC value
  */
-uint16_t convertEPSADC(uint8_t ADCdata[], uint8_t data1, uint8_t data0 ){
-	uint16_t telem_code = (uint16_t)data0 + ((uint16_t)data1 * 256);
+double convertEPSADC(uint8_t ADCdata[], uint16_t telem_code){
 	uint16_t adcResponse = (uint16_t)ADCdata[0] + ((uint16_t)ADCdata[1] * 256);
-	uint16_t converted = 0;
+	double converted = 0;
 
 	switch (telem_code) {
 		case 0xE284: //BCR output current
@@ -812,7 +809,19 @@ uint16_t convertEPSADC(uint8_t ADCdata[], uint8_t data1, uint8_t data0 ){
 	return converted;
 }
 
-
+/*
+ * 	Purpose:
+ * 	Take in a two byte integer and convert it to two one byte integers.
+ *
+ * 	Parameters:
+ * 		to_convert - two byte integer to convert
+ * 		converted - points to the now split two byte integer,
+ * 					the first integer is data0, the second is data1
+ */
+void convertCommand(uint16_t to_convert, uint8_t converted[]) {
+	converted[0] = to_convert & 0xFF;
+	converted[1] = (to_convert>>8) & 0xFF;
+}
 
 /* USER CODE END 4 */
 

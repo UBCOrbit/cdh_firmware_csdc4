@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=C:/Users/Carter/Desktop/Orbit/github/payloadSync/payloadSync/Inc
+HeaderPath=C:/Users/Carter/Desktop/Orbit/test2/Inc
 HeaderFiles=stm32f4xx_it.h;stm32f4xx_hal_conf.h;main.h;
-SourcePath=C:/Users/Carter/Desktop/Orbit/github/payloadSync/payloadSync/Src
+SourcePath=C:/Users/Carter/Desktop/Orbit/test2/Src
 SourceFiles=stm32f4xx_it.h;stm32f4xx_hal_conf.h;main.h;stm32f4xx_it.c;stm32f4xx_hal_msp.c;main.c;
 
 [PreviousLibFiles]
