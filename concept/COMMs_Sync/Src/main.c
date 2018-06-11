@@ -84,6 +84,9 @@ print_buffer(char *buf, int size);
 uint8_t receive_packet(char *pointer);
 uint8_t check_start_protocol(char *pointer);
 char check_id(char *pointer, int packet_length);
+void get_address(char *buffer, char *adr);
+void check_flag(char *buffer, char *flg);
+void get_length(char *buffer, char *len);
 void parse_packet(char *pointer, int packet_legnth);
 /* USER CODE END PFP */
 
@@ -329,7 +332,8 @@ uint8_t check_start_protocol(char *pointer) {
   for (int i = 7; 0 <= i; i --) {
     holder[8 - i] = ((buffer >> i) & 0x01);
   }
-  if ((holder[0] == 0) && (holder[1] == 1)) {
+  if ((holder[0] == 0) && (holder[1] == 1) && (holder[2] == 1) &&
+        (holder[3] == 0)) {
     return 1;
   }
   else {
@@ -337,39 +341,49 @@ uint8_t check_start_protocol(char *pointer) {
   }
 }
 
-// Description: Checks whether the received packet follows the beginnign and
-// 				end protocol.
-// Input: Pointer to where the packet is to be saved and the length of the
-// 				packet.
-// Returns: The char version of the ID.
-char check_id(char *pointer) {
+// // Description: Checks whether the received packet follows the beginnign and
+// // 				end protocol.
+// // Input: Pointer to where the packet is to be saved and the length of the
+// // 				packet.
+// // Returns: The char version of the ID.
+// char check_id(char *pointer) {
+//
+// 	uint8_t holder1[BYTE_SIZE];
+//   uint8_t holder2[BYTE_SIZE];
+// 	char buffer1 = *(pointer);
+// 	char buffer2 = *(pointer + 1);
+//   int temp;
+//   char output;
+//
+// 	for (int i = 7; 0 <= i; i --) {
+// 			holder1[8 - i] = ((buffer1 >> i) & 0x01);
+//       holder2[8 - i] = ((buffer1 >> i) & 0x01);
+// 	}
+//
+//   temp = ((holder1[2] * (2**7)) +
+//           (holder1[3] * (2**6)) +
+//           (holder1[4] * (2**5)) +
+//           (holder1[5] * (2**4)) +
+//           (holder1[6] * (2**3)) +
+//           (holder1[7] * (2**2)) +
+//           (holder2[0] * (2**1)) +
+//           (holder2[1] * (2**0)));
+//
+//   output = (char)temp;
+//   return output;
+// }
 
-	uint8_t holder1[BYTE_SIZE];
-  uint8_t holder2[BYTE_SIZE];
-	char buffer1 = *(pointer);
-	char buffer2 = *(pointer + 1);
-  int temp;
-  char output;
+void get_address(char *buffer, char *adr) {
 
-	for (int i = 7; 0 <= i; i --) {
-			holder1[8 - i] = ((buffer1 >> i) & 0x01);
-      holder2[8 - i] = ((buffer1 >> i) & 0x01);
-	}
-
-  temp = ((holder1[2] * (2**7)) +
-          (holder1[3] * (2**6)) +
-          (holder1[4] * (2**5)) +
-          (holder1[5] * (2**4)) +
-          (holder1[6] * (2**3)) +
-          (holder1[7] * (2**2)) +
-          (holder2[0] * (2**1)) +
-          (holder2[1] * (2**0)));
-
-  output = (char)temp;
-  return output;
 }
 
+void check_flag(char *buffer, char *flg) {
 
+}
+
+void get_length(char *buffer, char *len) {
+
+}
 
 // Description:
 //
