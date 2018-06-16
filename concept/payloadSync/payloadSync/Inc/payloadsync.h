@@ -1,12 +1,18 @@
 /*
  * payloadsync.h
- *
+ *	Description: Functions for sending, receiving, and parsing commands between CDH and Payload.
  *  Created on: Jun 16, 2018
  *      Author: Carter
  */
 
 #ifndef PAYLOADSYNC_H_
 #define PAYLOADSYNC_H_
+
+#include "stm32f4xx_hal.h"
+#include "payloadsync.h"
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define TRUE 1
 #define FALSE 0
@@ -48,6 +54,21 @@ typedef struct Queue {
 	uint8_t numMessages;
 } Queue;
 
+/* Operation Variables*/
+extern uint32_t upload_index; // upload progress tracker
+extern Queue *commandQue;
+extern Queue *errors;
+extern Message *command;
+extern uint8_t shasum[];
+
+extern UART_HandleTypeDef huart1;
+extern UART_HandleTypeDef huart2;
+extern UART_HandleTypeDef huart6;
+
+/* File transfer variables */
+extern uint8_t packetLenArr[];
+extern uint16_t packetLen;
+extern uint8_t *data;
 
 /* Function Prototypes -----------------------------------------------*/
 
