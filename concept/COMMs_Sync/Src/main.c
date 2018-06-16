@@ -82,11 +82,12 @@ void printStringToConsole(char message[]);
 void clearArray(char *buf);
 print_buffer(char *buf, int size);
 uint8_t receive_packet(char *pointer);
+uint8_t mram_packet(char *pointer, *mram_pointer);
 uint8_t check_start_protocol(char *pointer);
 char check_id(char *pointer, int packet_length);
 void get_address(char *buffer, char *adr);
 void check_flag(char *buffer, char *flg);
-void get_length(char *buffer, char *len);
+void get_lengthCommand(char *buffer, char *len_command);
 void parse_packet(char *pointer, int packet_legnth);
 /* USER CODE END PFP */
 
@@ -322,6 +323,10 @@ uint8_t receive_packet(char *pointer) {
 	return 0;
 }
 
+uint8_t mram_packet(char *pointer, *mram_pointer) {
+
+}
+
 // Description: Checks whether the packet follows the correct start bit
 //        protocol.
 // Input: Pointer to where the packet is stored.
@@ -330,7 +335,7 @@ uint8_t check_start_protocol(char *pointer) {
 	uint8_t holder[BYTE_SIZE];
   char buffer = *pointer;
   for (int i = 7; 0 <= i; i --) {
-    holder[8 - i] = ((buffer >> i) & 0x01);
+    holder[7 - i] = ((buffer >> i) & 0x01);
   }
   if ((holder[0] == 0) && (holder[1] == 1) && (holder[2] == 1) &&
         (holder[3] == 0)) {
@@ -373,16 +378,45 @@ uint8_t check_start_protocol(char *pointer) {
 //   return output;
 // }
 
+
+//
 void get_address(char *buffer, char *adr) {
-
+  uint8_t holder[BYTE_SIZE];
+  char buffer = *pointer;
+  for (int i = 7; 0 <= i; i --) {
+    holder[7 - i] = ((buffer >> i) & 0x01);
+  }
+  *adr = ((holder[4] * (2**2)) +
+          (holder[5] * (2**1)) +
+          (holder[6] * (2**0)));
 }
 
+//
 void check_flag(char *buffer, char *flg) {
-
+  uint8_t holder[BYTE_SIZE];
+  char buffer = *pointer;
+  for (int i = 7; 0 <= i; i --) {
+    holder[7 - i] = ((buffer >> i) & 0x01);
+  }
+  *flg = holder[7];
 }
 
-void get_length(char *buffer, char *len) {
 
+//
+void get_lengthCommand(char *buffer, char *len_command) {
+  uint8_t holder[BYTE_SIZE];
+  char buffer = *(pointer + 1);
+  for (int i = 7; 0 <= i; i --) {
+    holder[7 - i] = ((buffer >> i) & 0x01);
+  }
+  *len_command = ((holder[0] * (2**7)) +
+                  (holder[1] * (2**6)) +
+                  (holder[2] * (2**5)) +
+                  (holder[3] * (2**4)) +
+                  (holder[4] * (2**3)) +
+                  (holder[5] * (2**2)) +
+                  (holder[6] * (2**1)) +
+                  (holder[7] * (2**0)));
 }
 
 // Description:
