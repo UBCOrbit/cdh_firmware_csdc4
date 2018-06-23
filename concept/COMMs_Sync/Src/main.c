@@ -89,7 +89,9 @@ uint8_t check_start_protocol(uint8_t *buf);
 void get_address(uint8_t *buf, uint8_t *adr);
 void check_flag(uint8_t *buf, uint8_t *flg);
 void get_lengthCommand(uint8_t *buf, uint8_t *len_command);
-uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_command, int packet_legnth);
+void save_data (uint8_t *buf, uint8_t *data, uint8_t *length_command);
+void save_command (uint8_t * buf, uint8_t *data, uint8_t *len_command);
+uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_command, uint8_t *data, int packet_legnth);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -129,16 +131,16 @@ int main(void)
   uint8_t check;
   // COMMs_Sync Pointers
   uint8_t * address;
-  address = 1;
+//  address = (uint8_t)1;
   uint8_t * c_d_flag;
-  c_d_flag = address + 1;
+//  c_d_flag = address + 1;
   uint8_t * length_command;
-  length_command = c_d_flag + 1;
+//  length_command = c_d_flag + 1;
   uint8_t * buffer;
-  buffer = length_command + 1;
+//  buffer = length_command + 1;
   buffer = (uint8_t*) malloc (PACKET_SIZE);
   uint8_t * data;
-  data = 1000;
+//  data = 1000;
   data = (uint8_t*) malloc (PACKET_SIZE);
   // Start the program with the light turned off.
 //  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);   /* USER CODE END 2 */
@@ -152,13 +154,13 @@ int main(void)
     check = receive_packet(buffer);
     // Turns on light if the receive packet function signals that it received a packet.
     if (check == 1) {
+    	parse_packet(buffer, address, c_d_flag, length_command, data, PACKET_SIZE);
+    	print_buffer(buffer, PACKET_SIZE);
+    	break;
 //      HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET); // Note: had to manually configure the LD2 pin in the configuration part of this file.
     }
 
    // Template for main functionality and example for how this code will function.
-
-
-
 
 
   }
@@ -295,7 +297,7 @@ static void MX_GPIO_Init(void)
 //				directly (such as the Arduino serial monitor). Otherwise, need to connect the huart2 pins to
 // 				an Ardunio an receive the message from that end.
 // Input: message to be transmitted
-void print_string_to_console(char message[]) {
+void print_string_to_console(char *message[]) {
 	HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), timeOut);
 }
 
@@ -313,9 +315,9 @@ void clear_array(uint8_t *buf) {
 // Input: Pointer the to buffer to be printed and the length of the buffer
 //      (number of char elements in the buffer)
 void print_buffer(uint8_t *buf, int size) {
-  uint8_t temp;
-  for (int i = 0; i < size; i++) {
-    temp = *(buf + i);
+  char temp;
+  for (uint8_t i = 0; i < size; i++) {
+	temp = (char)*(buf + i);
     print_string_to_console(temp);
   }
 }
@@ -335,9 +337,9 @@ uint8_t receive_packet(uint8_t *buf) {
 		for (int i = 0; i < PACKET_SIZE; i += 1){
 			*(buf + i) = tempBuffer[i];
 		}
-		return 1;
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 //// Pulls a packet from the
@@ -413,11 +415,15 @@ void get_lengthCommand(uint8_t *buf, uint8_t *len_command) {
                   (holder[7] * (1)));
 }
 
-uint8_t save_payload () {
-
+// Description: Saves what is in the payload field of the saved packet into the data
+// pointer.
+void save_data (uint8_t *buf, uint8_t *data, uint8_t *len_command) {
+	for (int x = 0; x < *len_command; x++) {
+		  *(data + x) = *(buf + 2 + x);
+	  }
 }
 
-uint8_t save_command () {
+void save_command (uint8_t * buf, uint8_t *data, uint8_t *len_command) {
 
 }
 
@@ -428,7 +434,7 @@ uint8_t save_command () {
 //
 // Input: pointer to where the packet is saved, and the length of the packet
 // Output: returns 1 if the packets was properly parsed and returns 0 if there was an issue
-uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_command, int packet_legnth) {
+uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_command, uint8_t *data, int packet_legnth) {
 	if (check_start_protocol(buf) == 0) {
 		print_string_to_console("Incorrect start protocol.");
 		return 0;
@@ -436,6 +442,11 @@ uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_comm
 	get_address(buf, adr);
 	check_flag(buf, flg);
 	get_lengthCommand(buf, len_command);
+	if (*flg == 0) {
+		save_command(buf, data, len_command);
+	} else {
+		save_data(buf, data, len_command);
+	}
 	return 1;
 }
 
