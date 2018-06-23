@@ -131,45 +131,54 @@ int main(void)
 	  char buffer[100];
 	  int delay = 490;
 
+	  /* RECEIVES ------------------------------------ */
+
 	  // A::UART1
 	  while(HAL_UART_Receive(&huart1, buffer, strlen("A::UART1 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(delay);
+		  HAL_UART_Transmit(&huart6, "Waiting for A::UART1..\n", strlen("Waiting for A::UART1..\n"), 100);
 	  }
 	  HAL_UART_Transmit(&huart6, buffer, strlen(buffer), 100);
 
 	  // A::UART2
 	  while(HAL_UART_Receive(&huart2, buffer, strlen("A::UART2 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(delay);
+		  HAL_UART_Transmit(&huart6, "Waiting for A::UART2..\n", strlen("Waiting for A::UART2..\n"), 100);
 	  }
 	  HAL_UART_Transmit(&huart6, buffer, strlen(buffer), 100);
 
 	  // A::I2C1
 	  while(HAL_I2C_Slave_Receive(&hi2c1, buffer, strlen("A::I2C1 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(delay);
+		  HAL_UART_Transmit(&huart6, "Waiting for A::I2C1..\n", strlen("Waiting for A::I2C1..\n"), 100);
 	  }
 	  HAL_UART_Transmit(&huart6, buffer, strlen(buffer), 100);
 
 	  // A::SPI1
 	  while(HAL_SPI_Transmit(&hspi2, buffer, strlen("A::SPI1 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(delay);
+		  HAL_UART_Transmit(&huart6, "Waiting for A::SPI1..\n", strlen("Waiting for A::SPI1..\n"), 100);
 	  }
 	  HAL_UART_Transmit(&huart6, buffer, strlen(buffer), 100);
 
 	  // A::SPI3
 	  while(HAL_SPI_Transmit(&hspi3, buffer, strlen("A::SPI3 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(delay);
+		  HAL_UART_Transmit(&huart6, "Waiting for A::SPI3..\n", strlen("Waiting for A::SPI3..\n"), 100);
 	  }
 	  HAL_UART_Transmit(&huart6, buffer, strlen(buffer), 100);
 
 	  // C::I2C1
 	  while(HAL_I2C_Slave_Receive(&hi2c2, buffer, strlen("C::I2C1 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(delay);
+		  HAL_UART_Transmit(&huart6, "Waiting for C::I2C1..\n", strlen("Waiting for C::I2C1..\n"), 100);
 	  }
 	  HAL_UART_Transmit(&huart6, buffer, strlen(buffer), 100);
 
 	  // C::SPI2
 	  while(HAL_SPI_Receive(&hspi1, buffer, strlen("C::SPI2 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(delay);
+		  HAL_UART_Transmit(&huart6, "Waiting for C::SPI2..\n", strlen("Waiting for C::SPI2..\n"), 100);
 	  }
 	  HAL_UART_Transmit(&huart6, buffer, strlen(buffer), 100);
   }

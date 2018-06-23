@@ -91,13 +91,15 @@ void printStringToConsole(char message[]);
 void processData(uint8_t tempBuffer[], int baseIndex, int numBytes);
 void compareData();
 void clearArray(uint8_t *buffer);
+void get_reInit();
+void reInit_someone();	
 /* USER CODE END PFP */
 
 int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  Start:
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -197,6 +199,7 @@ void compareData(){
 		printStringToConsole("C: A and B disagree. Reset.\n");
 		counter = 0;
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+    get_reInit();
 	}
 }
 
@@ -222,6 +225,51 @@ void clearArray(uint8_t *buffer){
 	for (int i = 0; i < BUFFER_SIZE; i++) {
 		buffer[i] = '\0';
 	}
+}
+
+//Description: This function resends all current variable values stored on STM C to the STM's that were reset (STM A and STM B)
+//Input:
+void get_reInit(){
+	int reqBytes = 2;
+	int baseIndex, numBytes;
+
+	char baseIndex_s[2];
+	char numBytes_s[2];
+
+	uint8_t tempBuffer[BUFFER_SIZE];
+	clearArray(tempBuffer);
+
+	// Parse data request string --------------------------------------
+	baseIndex_s[0] = tempBuffer[0];
+	baseIndex_s[1] = '\0';
+
+	// Store numBytes -------------------------------------------------
+	numBytes_s[0] = tempBuffer[1];
+	numBytes_s[1] = '\0';
+
+	// Convert from bytes to int --------------------------------------
+	baseIndex = atoi(baseIndex_s);
+	numBytes = atoi(numBytes_s);
+
+	// Generate data array --------------------------------------------
+	uint8_t reqData[numBytes];
+	clearArray(reqData);
+
+	// Transfer data from internal storage to msg buffer --------------
+	for(int count = 0; count < numBytes; count++){
+		reqData[count] = STM_C.data[baseIndex+count];
+	}
+
+	// Send data to STM_A and STM_B -------------------------------------------------
+	HAL_Delay(500);
+	printStringToConsole("\nC:Beginning transmission\n");
+
+	HAL_SPI_Transmit(&hspi1, (uint8_t*)reqData, strlen(reqData), timeOut);
+	HAL_SPI_Transmit(&hspi2, (uint8_t*)reqData, strlen(reqData), timeOut);
+}
+
+void reInit_someone(){
+  goto Start;
 }
 /* USER CODE END 4 */
 
