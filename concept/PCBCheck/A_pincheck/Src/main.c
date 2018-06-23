@@ -128,6 +128,8 @@ int main(void)
   /* USER CODE END WHILE */
 	  HAL_Delay(5000);
 
+	  /* TRANSMITS ------------------------------------ */
+
 	  // PC14
 	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_SET);
 	  HAL_Delay(1000);
@@ -172,7 +174,7 @@ int main(void)
 	  }
 
 	  // I2C
-	  while(HAL_I2C_Master_Transmit(&hi2c1,0xA0, "A::I2C1 is OK\n", strlen("A::I2C1 is OK\n"), 10) != HAL_OK){
+	  while(HAL_I2C_Master_Transmit(&hi2c1,0, "A::I2C1 is OK\n", strlen("A::I2C1 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(990);
 	  }
 
