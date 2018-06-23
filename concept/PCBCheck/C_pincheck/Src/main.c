@@ -122,20 +122,26 @@ int main(void)
 	  char buffer[100];
 	  int delay = 490;
 
+	  /* TRANSMITS ------------------------------------ */
+
 	  // A::SPI1
 	  while(HAL_SPI_Receive(&hspi1, buffer, strlen("A::SPI1 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(delay);
+		  HAL_UART_Transmit(&huart1, "Waiting for A::SPI1..\n", strlen("Waiting for A::SPI1..\n"), 100);
 	  }
 	  HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 10);
 
 	  // UART6
 	  while(HAL_UART_Transmit(&huart6, buffer, strlen("A::UART6 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(delay);
+		  HAL_UART_Transmit(&huart1, "Waiting for A::UART6..\n", strlen("Waiting for A::UART6..\n"), 100);
 	  }
 	  HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 10);
 
+	  /* RECEIVES ------------------------------------ */
+
 	  // C::I2C1
-	  while(HAL_I2C_Slave_Transmit(&hi2c1, "C::I2C1 is OK\n", strlen("C::I2C1 is OK\n"), 10) != HAL_OK){
+	  while(HAL_I2C_Master_Transmit(&hi2c1, 0, "C::I2C1 is OK\n", strlen("C::I2C1 is OK\n"), 10) != HAL_OK){
 		  HAL_Delay(delay);
 	  }
 	  HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 100);
