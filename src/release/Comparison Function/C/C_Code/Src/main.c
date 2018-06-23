@@ -99,7 +99,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  Start:
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -268,6 +268,9 @@ void get_reInit(){
 	HAL_SPI_Transmit(&hspi2, (uint8_t*)reqData, strlen(reqData), timeOut);
 }
 
+void reInit_someone(){
+  goto Start;
+}
 /* USER CODE END 4 */
 
 /** System Clock Configuration
