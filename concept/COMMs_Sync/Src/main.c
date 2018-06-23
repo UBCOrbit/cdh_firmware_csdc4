@@ -89,7 +89,7 @@ uint8_t check_start_protocol(uint8_t *buf);
 void get_address(uint8_t *buf, uint8_t *adr);
 void check_flag(uint8_t *buf, uint8_t *flg);
 void get_lengthCommand(uint8_t *buf, uint8_t *len_command);
-void parse_packet(uint8_t *buf, int packet_legnth);
+uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_command, int packet_legnth);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -128,11 +128,18 @@ int main(void)
   //Allocating 256 bytes of memory for received packets.
   uint8_t check;
   // COMMs_Sync Pointers
-  uint8_t * buffer;
-  buffer = (uint8_t*) malloc (PACKET_SIZE);
   uint8_t * address;
+  address = 1;
   uint8_t * c_d_flag;
+  c_d_flag = address + 1;
   uint8_t * length_command;
+  length_command = c_d_flag + 1;
+  uint8_t * buffer;
+  buffer = length_command + 1;
+  buffer = (uint8_t*) malloc (PACKET_SIZE);
+  uint8_t * data;
+  data = 1000;
+  data = (uint8_t*) malloc (PACKET_SIZE);
   // Start the program with the light turned off.
 //  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);   /* USER CODE END 2 */
 
@@ -141,12 +148,18 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
-  check = receive_packet(buffer);
-  // Turns on light if the receive packet function signals that it received a packet.
-  if (check == 1) {
-//    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET); // Note: had to manually configure the LD2 pin in the configuration part of this file.
-  }
   /* USER CODE BEGIN 3 */
+    check = receive_packet(buffer);
+    // Turns on light if the receive packet function signals that it received a packet.
+    if (check == 1) {
+//      HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET); // Note: had to manually configure the LD2 pin in the configuration part of this file.
+    }
+
+   // Template for main functionality and example for how this code will function.
+
+
+
+
 
   }
   /* USER CODE END 3 */
@@ -400,16 +413,32 @@ void get_lengthCommand(uint8_t *buf, uint8_t *len_command) {
                   (holder[7] * (1)));
 }
 
+uint8_t save_payload () {
+
+}
+
+uint8_t save_command () {
+
+}
+
+
 // Description: This function parses packets received from COMMs. Checks each of the overhead
 // fields and updates each of the relevant pointers. Additionally, it updates the payload
 // field.
 //
 // Input: pointer to where the packet is saved, and the length of the packet
 // Output: returns 1 if the packets was properly parsed and returns 0 if there was an issue
-uint8_t packet_parse(char *buf, int packet_legnth) {
-	check_start_protocol(buf);
-
+uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_command, int packet_legnth) {
+	if (check_start_protocol(buf) == 0) {
+		print_string_to_console("Incorrect start protocol.");
+		return 0;
+	}
+	get_address(buf, adr);
+	check_flag(buf, flg);
+	get_lengthCommand(buf, len_command);
+	return 1;
 }
+
 
 
 
