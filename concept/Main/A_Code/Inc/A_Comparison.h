@@ -1,6 +1,17 @@
+#ifndef A_COMPARISON_H_
+#define A_COMPARISON_H_
+
 #include "stm32f4xx_hal.h"
-#include <string.h>
+
+#ifndef STDLIB_H_
+#define STDLIB_H_
 #include <stdlib.h>
+#endif
+
+#ifndef STRING_H_
+#define STRING_H_
+#include <string.h>
+#endif
 
 /*GLOBAL VARIABLES---------------------------------------*/
 #define MAX_BUFFER_SIZE 64
@@ -15,3 +26,5 @@ struct board {
 void STM_BOARD_Init(void);
 void processData(uint8_t tempBuffer[], int baseIndex, int numBytes);
 void compareData(int baseIndex, int numBytes);
+
+#endif
