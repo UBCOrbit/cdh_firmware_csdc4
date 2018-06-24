@@ -9,16 +9,8 @@
 #define PAYLOAD_H_
 
 #include "stm32f4xx_hal.h"
-
-#ifndef STDLIB_H_
-#define STDLIB_H_
 #include <stdlib.h>
-#endif
-
-#ifndef STRING_H_
-#define STRING_H_
 #include <string.h>
-#endif
 
 #define TRUE 1
 #define FALSE 0
@@ -26,7 +18,7 @@
 #define TX_DELAY 50
 #define RX_DELAY 100
 #define COMMAND_DELAY 250
-#define TX2_BOOT_DELAY 10000
+#define TX2_BOOT_DELAY 30000
 
 // Command Types
 #define POWEROFF        0
@@ -61,7 +53,7 @@ typedef struct Queue {
 
 /* Function Prototypes -----------------------------------------------*/
 uint8_t saveData(uint8_t *data, uint8_t dataLen); // Dummy Memory
-void heartbeatListen();
+void payloadHeartbeatListen();
 
 //Queue Functions
 Queue* initQueue();

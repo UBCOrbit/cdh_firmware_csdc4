@@ -1,5 +1,4 @@
-#include "EPS.h"
-#include "stm32f4xx_hal.h"
+#include "eps.h"
 
 I2C_HandleTypeDef hi2c1;
 

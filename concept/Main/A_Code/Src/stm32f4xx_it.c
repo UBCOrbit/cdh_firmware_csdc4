@@ -34,13 +34,16 @@
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_it.h"
+#include "payload.h"
 
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-
+extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim5;
+extern int volatile payloadOn;
 /******************************************************************************/
 /*            Cortex-M4 Processor Interruption and Exception Handlers         */ 
 /******************************************************************************/
@@ -66,6 +69,59 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f4xx.s).                    */
 /******************************************************************************/
+
+/**
+* This timer will trigger with 1min left before contact with ground.
+* We need to:
+* 	-turn payload off
+* 	-turn comms on into a "listening state" and wait for a command
+*/
+void TIM2_IRQHandler(void)
+{
+	/* USER CODE BEGIN TIM2_IRQn 0 */
+
+	//Command payload to turn off
+	uint8_t *data = 0;
+	sendmHeader(createMessage(POWEROFF, 0, data));
+
+	//Give them 30s to turn off
+	HAL_Delay(30000);
+
+	//Trigger MOSFET connecting to payload to ensure they turned off
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
+
+	//Turn on COMMS
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_RESET);
+	/* USER CODE END TIM2_IRQn 0 */
+	HAL_TIM_IRQHandler(&htim2);
+	/* USER CODE BEGIN TIM2_IRQn 1 */
+
+	/* USER CODE END TIM2_IRQn 1 */
+}
+
+/**
+* This timer will trigger with 30s left before it is time to take a picture.
+* We need to:
+* 	-ensure comms is off
+* 	-turn on payload
+*/
+void TIM5_IRQHandler(void)
+{
+	/* USER CODE BEGIN TIM5_IRQn 0 */
+
+	//Turn MOSFET off
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_SET);
+
+	//Turn on Payload
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
+	payloadOn = 1;
+
+	/* USER CODE END TIM5_IRQn 0 */
+	HAL_TIM_IRQHandler(&htim5);
+	/* USER CODE BEGIN TIM5_IRQn 1 */
+
+	/* USER CODE END TIM5_IRQn 1 */
+}
 
 /* USER CODE BEGIN 1 */
 

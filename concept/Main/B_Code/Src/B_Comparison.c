@@ -1,4 +1,4 @@
-#include "B_Comparison.h"
+#include "b_comparison.h"
 
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;

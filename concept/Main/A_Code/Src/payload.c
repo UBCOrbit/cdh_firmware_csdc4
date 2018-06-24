@@ -37,18 +37,17 @@ uint8_t saveData(uint8_t *data, uint8_t dataLen){
 }
 
 /* Description: TX2 has a heartbeat that inverts its signal every 1second.
- * 				This function checks for two consecutive beats over PCA8 and resets the TX2
- * 				over PCA6 if it's not observed.
+ * 				This function checks for two consecutive beats over PC13 and resets the TX2
+ * 				over PC9 if it's not observed.
  */
-void heartbeatListen(){
-	return; // To-do: remove this when pins are set
-	GPIO_PinState currState = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_12);
+void payloadHeartbeatListen(){
+	GPIO_PinState currState = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
 	HAL_Delay(1000);
 
-	if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_12) == currState){
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_RESET);
+	if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == currState){
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
 		HAL_Delay(1000);
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
 		HAL_Delay(TX2_BOOT_DELAY); // To-do: adjust boot-time for TX2
 	}
 	else
@@ -125,7 +124,7 @@ Message *createMessage(uint8_t command_code, uint16_t data_len, uint8_t *data){
 void sendData(uint8_t *data, int dataLen){
 	  while(HAL_UART_Transmit(&huart6, data, dataLen, TX_DELAY) != HAL_OK){
 		  HAL_Delay(TX_DELAY); // Wait 10ms before retry
-		  heartbeatListen(); // Check if still alive
+		  payloadHeartbeatListen(); // Check if still alive
 	  }
 }
 
@@ -137,7 +136,7 @@ void receiveData(uint8_t *reply, int numBytes){
 /* Wait for a response -----------*/
 	while(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY) != HAL_OK){
 		HAL_Delay(RX_DELAY);
-		heartbeatListen(); // Check if still alive
+		payloadHeartbeatListen(); // Check if still alive
 	}
 }
 
