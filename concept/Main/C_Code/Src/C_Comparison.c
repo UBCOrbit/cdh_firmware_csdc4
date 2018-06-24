@@ -1,4 +1,4 @@
-#include "C_Comparison.h"
+#include "c_comparison.h"
 
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;

@@ -1,4 +1,4 @@
-#include "A_Comparison.h"
+#include "a_comparison.h"
 
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
@@ -85,6 +85,43 @@ void processData(uint8_t tempBuffer[], int baseIndex, int numBytes) {
 	}
 }
 
+//Description: This function resends all current variable values to STM's that were reset
+void reinitialize(){
+	int reqBytes = 2;
+	int baseIndex, numBytes;
+
+	char baseIndex_s[2];
+	char numBytes_s[2];
+
+	uint8_t tempBuffer[MAX_BUFFER_SIZE];
+	clearArray(tempBuffer);
+
+	// Parse data request string --------------------------------------
+	baseIndex_s[0] = tempBuffer[0];
+	baseIndex_s[1] = '\0';
+
+	// Store numBytes -------------------------------------------------
+	numBytes_s[0] = tempBuffer[1];
+	numBytes_s[1] = '\0';
+
+	// Convert from bytes to int --------------------------------------
+	baseIndex = atoi(baseIndex_s);
+	numBytes = atoi(numBytes_s);
+
+	// Generate data array --------------------------------------------
+	uint8_t reqData[numBytes];
+	clearArray(reqData);
+
+	// Transfer data from internal storage to msg buffer --------------
+	for(int count = 0; count < numBytes; count++){
+	  reqData[count] = STM_A.data[baseIndex+count];
+	}
+
+	// Send data to STM_A and STM_B -------------------------------------------------
+	HAL_Delay(500);
+
+	HAL_SPI_Transmit(&hspi2, (uint8_t*)reqData, strlen(reqData), 0x0FFF);
+}
 
 //Description: This function writes null bytes to the buffer array passed to it
 //Input: pointer to buffer that needs to be cleared

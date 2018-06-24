@@ -2,16 +2,8 @@
 #define A_COMPARISON_H_
 
 #include "stm32f4xx_hal.h"
-
-#ifndef STDLIB_H_
-#define STDLIB_H_
 #include <stdlib.h>
-#endif
-
-#ifndef STRING_H_
-#define STRING_H_
 #include <string.h>
-#endif
 
 /*GLOBAL VARIABLES---------------------------------------*/
 #define MAX_BUFFER_SIZE 64
