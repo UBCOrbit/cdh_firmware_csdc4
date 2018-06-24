@@ -214,20 +214,12 @@ void compareData(int baseIndex, int numBytes){
 
 	while(received == 0){
 		printStringToConsole("Waiting..");
-		if(HAL_SPI_Receive(&hspi1, tempBuffer, numBytes, timeOut) == HAL_OK){
-			printStringToConsole("A: Received C data\n");
-	    processData(tempBuffer, baseIndex, numBytes);
-      received = 1;
-    }
-    else if(i<10){
-      HAL_Delay(100);
-      i++
-    }
-    else{
-      recieved = 1;
-    }
+		if(HAL_SPI_Receive(&hspi1, tempBuffer, numBytes, timeOut) == HAL_OK)
+			received = 1;
 	}
 
+	printStringToConsole("A: Received B data\n");
+	processData(tempBuffer, baseIndex, numBytes);
 
 	// Compare received B data with A data -----------------------------------------------
 	int i = 0;
@@ -294,12 +286,19 @@ void get_reInit(){
 
 	while(received == 0){
 		printStringToConsole("Waiting..");
-		if(HAL_SPI_Receive(&hspi6, tempBuffer, numBytes, timeOut) == HAL_OK)
-			received = 1;
+		if(HAL_SPI_Receive(&hspi6, tempBuffer, numBytes, timeOut) == HAL_OK){
+			printStringToConsole("A: Received C data\n");
+      copyData(tempBuffer, baseIndex, numBytes);
+      received = 1;
+    }
+    else if(i<5){
+      HAL_Delay(1000);
+      i++
+    }
+    else{
+      recieved = 1;
+    }
 	}
-
-	printStringToConsole("A: Received C data\n");
-	copyData(tempBuffer, baseIndex, numBytes);
 
   goto Start;
 }

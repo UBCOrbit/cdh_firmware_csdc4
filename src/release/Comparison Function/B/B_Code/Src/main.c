@@ -260,21 +260,19 @@ void get_reInit(){
 
 	while(received == 0){
 		printStringToConsole("Waiting..");
-		if(HAL_SPI_Receive(&hspi1, tempBuffer, numBytes, timeOut) == HAL_OK){
+		if(HAL_SPI_Receive(&hspi6, tempBuffer, numBytes, timeOut) == HAL_OK){
 			printStringToConsole("B: Received C data\n");
       copyData(tempBuffer, baseIndex, numBytes);
       received = 1;
     }
-    else if(i<10){
-      HAL_Delay(100);
+    else if(i<5){
+      HAL_Delay(1000);
       i++
     }
     else{
       recieved = 1;
     }
 	}
-
-	
 	
 
   goto Start;
