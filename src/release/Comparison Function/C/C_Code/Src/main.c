@@ -90,7 +90,7 @@ static void MX_USART6_UART_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 void STM_BOARD_Init(void);
 void printStringToConsole(char message[]);
-void processData(uint8_t tempBuffer[], int baseIndex, int numBytes);
+void copyData(uint8_t tempBuffer[], int baseIndex, int numBytes);
 void compareData();
 void clearArray(uint8_t *buffer);
 void get_reInit();
@@ -214,7 +214,7 @@ void compareData(){
 
 // Description: Take received STM_C data from temporary buffer and store in the data array for STM_C on this board.
 // Input: temporary buffer, base index (starting index) of the data in memory, number of bytes to be compared
-void processData(uint8_t tempBuffer[], int baseIndex, int numBytes) {
+void copyData(uint8_t tempBuffer[], int baseIndex, int numBytes) {
 	int stmCount = 0;
 
 	// Copy temporary buffer to STM_B.data ------------------------------------------------
@@ -243,12 +243,19 @@ void get_reInit(){
 
 	while(received == 0){
 		printStringToConsole("Waiting..");
-		if(HAL_SPI_Receive(&hspi1, tempBuffer, numBytes, timeOut) == HAL_OK)
-			received = 1;
+		if(HAL_SPI_Receive(&hspi1, tempBuffer, numBytes, timeOut) == HAL_OK){
+			printStringToConsole("C: Received A data\n");
+	    copyData(tempBuffer, baseIndex, numBytes);
+      received = 1;
+    }
+    else if(i<5){
+      HAL_Delay(1000);
+      i++
+    }
+    else{
+      recieved = 1;
+    }
 	}
-
-	printStringToConsole("C: Received A data\n");
-	processData(tempBuffer, baseIndex, numBytes);
 
   goto Start;
 }
