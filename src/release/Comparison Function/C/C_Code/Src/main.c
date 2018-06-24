@@ -70,6 +70,8 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart6;
 
+int reset = 1;
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
@@ -88,7 +90,7 @@ static void MX_USART6_UART_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 void STM_BOARD_Init(void);
 void printStringToConsole(char message[]);
-void processData(uint8_t tempBuffer[], int baseIndex, int numBytes);
+void copyData(uint8_t tempBuffer[], int baseIndex, int numBytes);
 void compareData();
 void clearArray(uint8_t *buffer);
 void get_reInit();
@@ -99,7 +101,15 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  Start:
+  if (reset == 1){
+    get_reInit;
+  }
+  else{
+    reInit_someone;
+  }
+
+  Start: 
+  
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -199,24 +209,22 @@ void compareData(){
 		printStringToConsole("C: A and B disagree. Reset.\n");
 		counter = 0;
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-    get_reInit();
 	}
 }
 
-// Description: Take received STM_B data from temporary buffer and store in the data array for STM_B on this board.
+// Description: Take received STM_C data from temporary buffer and store in the data array for STM_C on this board.
 // Input: temporary buffer, base index (starting index) of the data in memory, number of bytes to be compared
-void processData(uint8_t tempBuffer[], int baseIndex, int numBytes) {
+void copyData(uint8_t tempBuffer[], int baseIndex, int numBytes) {
 	int stmCount = 0;
 
 	// Copy temporary buffer to STM_B.data ------------------------------------------------
 	while (stmCount <= numBytes + 1) {
-		STM_B.data[baseIndex + stmCount] = tempBuffer[stmCount];
+		STM_C.data[baseIndex + stmCount] = tempBuffer[stmCount];
 		stmCount++;
 	}
 
 	// Append null char -------------------------------------------------------------------
-	STM_B.data[baseIndex + stmCount] = '\0';
-	printStringToConsole("A: Finished comparison.\n");
+	STM_C.data[baseIndex + stmCount] = '\0';
 }
 
 //Description: This function writes null bytes to the buffer array passed to it
@@ -227,10 +235,34 @@ void clearArray(uint8_t *buffer){
 	}
 }
 
-//Description: This function resends all current variable values stored on STM C to the STM's that were reset (STM A and STM B)
-//Input:
+//Description: This function restarts the current STM
 void get_reInit(){
-	int reqBytes = 2;
+  int received = 0;
+	uint8_t tempBuffer[BUFFER_SIZE];
+	clearArray(tempBuffer);
+
+	while(received == 0){
+		printStringToConsole("Waiting..");
+		if(HAL_SPI_Receive(&hspi1, tempBuffer, numBytes, timeOut) == HAL_OK){
+			printStringToConsole("C: Received A data\n");
+	    copyData(tempBuffer, baseIndex, numBytes);
+      received = 1;
+    }
+    else if(i<5){
+      HAL_Delay(1000);
+      i++
+    }
+    else{
+      recieved = 1;
+    }
+	}
+
+  goto Start;
+}
+
+//Description: This function resends all current variable values to STM's that were reset
+void reInit_someone(){
+  	int reqBytes = 2;
 	int baseIndex, numBytes;
 
 	char baseIndex_s[2];
@@ -266,10 +298,6 @@ void get_reInit(){
 
 	HAL_SPI_Transmit(&hspi1, (uint8_t*)reqData, strlen(reqData), timeOut);
 	HAL_SPI_Transmit(&hspi2, (uint8_t*)reqData, strlen(reqData), timeOut);
-}
-
-void reInit_someone(){
-  goto Start;
 }
 /* USER CODE END 4 */
 

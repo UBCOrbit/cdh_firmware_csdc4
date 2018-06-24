@@ -69,6 +69,8 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart6;
 
+int reset = 1;
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
@@ -89,13 +91,22 @@ void STM_BOARD_Init(void);
 void printStringToConsole(char message[]);
 void compareData();
 void clearArray(uint8_t *buffer);
+void copyData(uint8_t tempBuffer[], int baseIndex, int numBytes);
+void get_reInit();
 /* USER CODE END PFP */
 
 int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  if (reset == 1){
+    get_reInit;
+  }
+  else{
+    break;
+  }
 
+  Start: 
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -220,12 +231,51 @@ void compareData() {
 	HAL_SPI_Transmit(&hspi1, (uint8_t*)reqData, strlen(reqData), timeOut);
 }
 
+void copyData(uint8_t tempBuffer[], int baseIndex, int numBytes) {
+	int stmCount = 0;
+
+	// Copy temporary buffer to STM_B.data ------------------------------------------------
+	while (stmCount <= numBytes + 1) {
+		STM_B.data[baseIndex + stmCount] = tempBuffer[stmCount];
+		stmCount++;
+	}
+
+	// Append null char -------------------------------------------------------------------
+	STM_B.data[baseIndex + stmCount] = '\0';
+}
+
 //Description: This function writes null bytes to the buffer array passed to it
 //Input: pointer to buffer that needs to be cleared
 void clearArray(uint8_t *buffer){
 	for (int i = 0; i < BUFFER_SIZE; i++) {
 		buffer[i] = '\0';
 	}
+}
+
+//Description: This function restarts the current STM
+void get_reInit(){
+  int received = 0;
+	uint8_t tempBuffer[BUFFER_SIZE];
+	clearArray(tempBuffer);
+
+	while(received == 0){
+		printStringToConsole("Waiting..");
+		if(HAL_SPI_Receive(&hspi6, tempBuffer, numBytes, timeOut) == HAL_OK){
+			printStringToConsole("B: Received C data\n");
+      copyData(tempBuffer, baseIndex, numBytes);
+      received = 1;
+    }
+    else if(i<5){
+      HAL_Delay(1000);
+      i++
+    }
+    else{
+      recieved = 1;
+    }
+	}
+	
+
+  goto Start;
 }
 /* USER CODE END 4 */
 
