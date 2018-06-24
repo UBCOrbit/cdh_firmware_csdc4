@@ -85,6 +85,7 @@ void processData(uint8_t tempBuffer[], int baseIndex, int numBytes) {
 	}
 }
 
+
 //Description: This function writes null bytes to the buffer array passed to it
 //Input: pointer to buffer that needs to be cleared
 void clearArray(uint8_t *buffer) {

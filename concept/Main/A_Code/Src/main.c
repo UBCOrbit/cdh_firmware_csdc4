@@ -40,6 +40,7 @@
 #include "stm32f4xx_hal.h"
 #include "A_Comparison.h"
 #include "EPS.h"
+#include "payload.h"
 
 /* USER CODE BEGIN Includes */
 

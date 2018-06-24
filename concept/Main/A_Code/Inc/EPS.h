@@ -1,3 +1,6 @@
+#ifndef EPS_H_
+#define EPS_H_
+
 #include "stm32f4xx_hal.h"
 
 /*GLOBAL VARIABLES-------------------------------------*/
@@ -125,3 +128,5 @@ void manualReset(uint8_t address);
 void convertCommand(uint16_t to_convert, uint8_t converted[]);
 double convertEPSADC(uint8_t ADCdata[], uint16_t telem_code);
 double convertBATADC(uint8_t ADCdata[], uint16_t telem_code);
+
+#endif
