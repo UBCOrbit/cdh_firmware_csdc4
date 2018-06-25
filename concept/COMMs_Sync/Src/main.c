@@ -155,7 +155,8 @@ int main(void)
     // Turns on light if the receive packet function signals that it received a packet.
     if (check == 1) {
     	parse_packet(buffer, address, c_d_flag, length_command, data, PACKET_SIZE);
-    	print_buffer(buffer, PACKET_SIZE);
+    	print_buffer(*address, 1);
+
     	break;
 //      HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET); // Note: had to manually configure the LD2 pin in the configuration part of this file.
     }
@@ -424,7 +425,7 @@ void save_data (uint8_t *buf, uint8_t *data, uint8_t *len_command) {
 }
 
 void save_command (uint8_t * buf, uint8_t *data, uint8_t *len_command) {
-
+	
 }
 
 
