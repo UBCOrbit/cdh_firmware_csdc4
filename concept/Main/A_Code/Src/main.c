@@ -147,7 +147,7 @@ int main(void)
 
 	/* USER CODE BEGIN 2 */
 	uint8_t lost_connection = 0;
-	uint8_t received = 0;
+	char received = 0;
 	uint8_t *buf = malloc(PACKET_SIZE);
 	uint8_t adr = 0;
 	uint8_t flg = 0;
@@ -155,38 +155,41 @@ int main(void)
 	uint8_t *data = malloc(PACKET_SIZE - 2);
 
 	Queue *payloadCommands = initQueue();
-	uint16_t time_until_picture;
+	Queue *errorPayload = initQueue();
 	char *commandPayload;
+	uint8_t *payloadReply = 0;
+	uint16_t time_until_picture;
 
 	//Start from point where we turn on COMMS
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, RESET);
+//	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, RESET);
 
 	//Wait for heartbeat from COMMS
-	while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8) != 1) {
-		HAL_Delay(ONDELAY);
-	}
-
+//	while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8) != 1) {
+//		HAL_Delay(ONDELAY);
+//	}
+	printStringToConsole("STM_A Start\n");
 	//Wait for COMMS to make connection to ground
 	//Not yet in place to deal with missing connection from ground
-	while(1) {
-		HAL_UART_Receive(&huart1, &received, 1, 0x0FFF);
-		if(received == 1)
-			break;
-	}
+	while(HAL_UART_Receive(&huart1, (uint8_t*)&received, 2, 0x0FFF) != HAL_OK);
+
+	printStringToConsole(&received);
 	/* USER CODE END 2 */
 
 	/* Over Ground loop*/
 	while (1) {
 		//Check receive packet
-		if(!receive_packet(buf))
-			free(buf);
+		if(!receive_packet(buf));
 		else {
+			printStringToConsole("Packet was received\n");
+			printStringToConsole((char *)buf);
 			if(parse_packet(buf, &adr, &flg, &len_command, data)) {
+				printStringToConsole("Packet was parsed\n");
 				switch(adr) {
 				//CDH Command
 				case 0x00:
 					switch(len_command) {
 					case 0x00:
+						printStringToConsole("Lost connection with ground\n");
 						lost_connection = 1;
 						break;
 					}
@@ -197,6 +200,7 @@ int main(void)
 					if(flg == 0) {
 						switch(len_command) {
 						case 0x00:
+							printStringToConsole("Take picture command received\n");
 							time_until_picture = ((uint16_t)data[0] * 256) + (uint16_t)data[1];
 							seconds_to_timer_period(time_until_picture, 5);
 
@@ -204,9 +208,13 @@ int main(void)
 							enqueue(createMessage(TAKE_PHOTO, 1, (data + 2)), payloadCommands);
 							break;
 						case 0x01:
+							printStringToConsole("Execute script command received\n");
 							commandPayload = "exec/identify_fire ";
 							commandPayload[19] = data[0] + '0';
 							enqueue(createMessage(EXECUTE_COMMAND, strlen(commandPayload), (uint8_t *)commandPayload), payloadCommands);
+							break;
+						case 0x02:
+							printStringToConsole("File download command received\n");
 							break;
 						}
 					} else;
@@ -222,7 +230,6 @@ int main(void)
 				}
 			}
 		}
-
 		if(lost_connection == 1)
 			break;
 	}
@@ -242,6 +249,15 @@ int main(void)
 	}
 
 	/*Payload picture & analyze*/
+	while(queueIsEmpty(payloadCommands)) {
+		sendmHeader(peekQueue(payloadCommands));
+		receiveData(payloadReply, 1);
+
+		if(*payloadReply == 0)
+			dequeue(payloadCommands);
+		else
+			handleError(errorPayload, peekQueue(payloadCommands), payloadReply);
+	}
 
 
 	/* USER CODE END 3 */
@@ -579,9 +595,8 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void init_buffer_memory() {
 
-}
+
 
 /*
  * Changes the timer period to trigger after a set number of seconds

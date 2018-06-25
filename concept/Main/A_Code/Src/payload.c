@@ -99,6 +99,12 @@ void dequeue(Queue *que){
 	que->numMessages--;
 }
 
+/* Description: Returns whether or not the queue is empty
+ */
+int queueIsEmpty(Queue *que) {
+	return (que->numMessages == 0);
+}
+
 /* MESSAGE FUNCTIONS -----------------------------------------------------------*/
 /* Description: Populate a message struct with given command code, data length and data pointer
  * Inputs: 8-bit command code, 16-bit data length, pointer to byte-formatted data array

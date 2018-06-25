@@ -13,7 +13,6 @@
 #define BYTE_SIZE 8 // number of bits in a byte
 
 /*FUNCTION PROTOTYPES-----------------------------------------------------------------------------*/
-void printStringToConsole(uint8_t message[]);
 void clearArray(uint8_t *buf);
 void print_buffer(uint8_t *buf, int size);
 uint8_t receive_packet(uint8_t *buf);
@@ -25,5 +24,6 @@ void get_lengthCommand(uint8_t *buf, uint8_t *len_command);
 void save_data(uint8_t *buf, uint8_t *data, uint8_t *length_command);
 void save_command(uint8_t * buf, uint8_t *data, uint8_t *len_command);
 uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_command, uint8_t *data);
+void printStringToConsole(char message[]);
 
 #endif

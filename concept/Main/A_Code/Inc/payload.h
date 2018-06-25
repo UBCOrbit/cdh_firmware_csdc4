@@ -60,6 +60,7 @@ Queue* initQueue();
 Message *peekQueue(Queue *que);
 void enqueue(Message *newMessage, Queue *que);
 void dequeue(Queue *que);
+int queueIsEmpty(Queue *que);
 
 //Message Functions
 Message *createMessage(uint8_t command_code, uint16_t data_len, uint8_t *data);

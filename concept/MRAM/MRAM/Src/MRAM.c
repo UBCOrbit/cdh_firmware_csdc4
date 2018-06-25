@@ -1,20 +1,19 @@
 #include "MRAM.h"
 
+SPI_HandleTypeDef hspi3;
+
 /*
  * Initialize the pins to allow for communication to the device.
  */
 void init_mem() {
-	//WP_PIN is LOW to protect writing to Status Register
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
-
-	//CS_PIN must be LOW to change the HOLD_PIN
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-
 	//HOLD_PIN must be HIGH for any communication with the device
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_SET);
+
+	//WP_PIN is LOW to protect writing to Status Register
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
 
 	//CS_PIN back to HIGH to minimize standby power of device
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
 }
 
 /*
@@ -32,13 +31,13 @@ void write_enable(int enable) {
 		cmd = 0x04;
 
 	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 
 	//Send command
 	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
 
 	//Drive CS pin back to high
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
 }
 
 /*
@@ -51,7 +50,7 @@ void write_status(uint8_t data) {
 	uint8_t cmd = 0x01;
 
 	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 
 	//Send command
 	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
@@ -60,7 +59,7 @@ void write_status(uint8_t data) {
 	HAL_SPI_Transmit(&hspi3, &data, 1, 50);
 
 	//Drive CS pin back to high
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
 }
 
 /*
@@ -68,20 +67,19 @@ void write_status(uint8_t data) {
 *
 * Parameter: data - 8bit data to write to the status register
 */
-void read_status(uint8_t *status) {
+void read_status(uint8_t status) {
 	uint8_t cmd = 0x05;
 
+
 	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 
 	//Send command
-	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
+	HAL_SPI_TransmitReceive(&hspi3, &cmd, &status, 1, 50);
 
-	//Read status
-	while (HAL_SPI_Receive(&hspi3, status, 1, 50) != HAL_OK);
 
 	//Drive CS pin back to high
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
 }
 
 /*
@@ -96,7 +94,7 @@ void read_mem(uint16_t address, int size, uint8_t *buffer) {
 	uint8_t cmd = 0x03;
 
 	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 
 	//Send read command
 	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
@@ -107,7 +105,7 @@ void read_mem(uint16_t address, int size, uint8_t *buffer) {
 	while (HAL_SPI_Receive(&hspi3, buffer, size, 50) != HAL_OK);
 
 	//Drive CS pin back to high to end reading communication
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
 }
 
 /*
@@ -121,7 +119,7 @@ void write_mem(uint16_t address, int size, uint8_t *buffer) {
 	uint8_t cmd = 0x02;
 
 	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 
 	//Send write command
 	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
@@ -133,7 +131,7 @@ void write_mem(uint16_t address, int size, uint8_t *buffer) {
 	HAL_SPI_Transmit(&hspi3, buffer, size, 50);
 
 	//Drive CS pin back to high to end writing communication
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
 }
 
 /*
@@ -149,12 +147,12 @@ void sleep(int sleep) {
 		cmd = 0xAB;
 
 	//Drive CS pin to low
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 
 	//Send command to wake up or sleep
 	HAL_SPI_Transmit(&hspi3, &cmd, 1, 50);
 
 	//Drive CS pin back to high
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
 	HAL_Delay(0.4);
 }

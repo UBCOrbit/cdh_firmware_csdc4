@@ -1,6 +1,7 @@
 #include "comms.h"
 
 UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart2;
 
 // Description: This function writes null bytes to the buffer array passed to it
 // Input: pointer to buffer that needs to be cleared
@@ -31,15 +32,34 @@ void clear_array(uint8_t *buf) {
 uint8_t receive_packet(uint8_t *buf) {
 	// Creates temporary buffer for receiving the packet.
 	uint8_t tempBuffer[PACKET_SIZE];
+	uint8_t packetSize = 0;
+	uint8_t commandLength[2][3] = {{0,0,0},
+								 {3,1,2}};
 
 	// Saves the packet in the temporary buffer.
-	if (HAL_UART_Receive(&huart1, tempBuffer, PACKET_SIZE, 0x0FFF) == HAL_OK) {
-		for (int i = 0; i < PACKET_SIZE; i += 1) {
-			*(buf + i) = tempBuffer[i];
-		}
-		return 1;
+	while(HAL_UART_Receive(&huart1, tempBuffer, 2, 0x0FFF) != HAL_OK);
+
+	if((tempBuffer[0] & 0x01) == 1)
+		packetSize = tempBuffer[1];
+	else
+		packetSize = commandLength[((tempBuffer[0]>1) & 0x03)][tempBuffer[1]];
+
+	printStringToConsole((char*)tempBuffer);
+
+	while (HAL_UART_Receive(&huart1, (tempBuffer + 2), packetSize, 0x0FFF) != HAL_OK)
+	for (int i = 0; i < PACKET_SIZE; i += 1) {
+		*(buf + i) = tempBuffer[i];
 	}
-	return 0;
+	return 1;
+}
+
+// Description: Transmit a string over huart2. If solder bridges SB13 and SB14 are not removed,
+//				this will transmit a message to the STLink chip and can be printed on a serial monitor
+//				directly (such as the Arduino serial monitor). Otherwise, need to connect the huart2 pins to
+// 				an Ardunio an receive the message from that end.
+// Input: message to be transmitted
+void printStringToConsole(char message[]) {
+	HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), 0x0FFF);
 }
 
 //// Pulls a packet from the
