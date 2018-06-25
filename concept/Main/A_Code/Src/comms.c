@@ -34,7 +34,7 @@ uint8_t receive_packet(uint8_t *buf) {
 	uint8_t tempBuffer[PACKET_SIZE];
 	uint8_t packetSize = 0;
 	uint8_t commandLength[2][3] = {{0,0,0},
-								 {3,1,2}};
+								 {8,1,2}};
 
 	// Saves the packet in the temporary buffer.
 	while(HAL_UART_Receive(&huart1, tempBuffer, 2, 0x0FFF) != HAL_OK);
@@ -42,14 +42,14 @@ uint8_t receive_packet(uint8_t *buf) {
 	if((tempBuffer[0] & 0x01) == 1)
 		packetSize = tempBuffer[1];
 	else
-		packetSize = commandLength[((tempBuffer[0]>1) & 0x03)][tempBuffer[1]];
+		packetSize = commandLength[((tempBuffer[0]>>1) & 0x07)][tempBuffer[1]];
 
-	printStringToConsole((char*)tempBuffer);
+	while (HAL_UART_Receive(&huart1, (tempBuffer + 2), packetSize, 0x0FFF) != HAL_OK);
 
-	while (HAL_UART_Receive(&huart1, (tempBuffer + 2), packetSize, 0x0FFF) != HAL_OK)
 	for (int i = 0; i < PACKET_SIZE; i += 1) {
 		*(buf + i) = tempBuffer[i];
 	}
+
 	return 1;
 }
 
@@ -71,19 +71,7 @@ void printStringToConsole(char message[]) {
 //        protocol.
 // Input: Pointer to where the packet is stored.
 uint8_t check_start_protocol(uint8_t *buf) {
-
-	uint8_t holder[BYTE_SIZE];
-	char buffer = *buf;
-	for (int i = 7; 0 <= i; i--) {
-		holder[7 - i] = ((buffer >> i) & 0x01);
-	}
-	if ((holder[0] == 0) && (holder[1] == 1) && (holder[2] == 1) &&
-		(holder[3] == 0)) {
-		return 1;
-	}
-	else {
-		return 0;
-	}
+	return (((buf[0]>>4) & 0b1111) == 0b0110);
 }
 
 // Description: updates the address pointer with the value specified
@@ -156,6 +144,7 @@ void save_command(uint8_t * buf, uint8_t *data, uint8_t *len_command) {
 // Output: returns 1 if the packets was properly parsed and returns 0 if there was an issue
 uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_command, uint8_t *data) {
 	if (check_start_protocol(buf) == 0) {
+		printStringToConsole("Error parsing the packet\n");
 		return 0;
 	}
 	get_address(buf, adr);

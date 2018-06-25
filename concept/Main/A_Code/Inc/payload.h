@@ -51,6 +51,15 @@ typedef struct Queue {
 	uint8_t numMessages;
 } Queue;
 
+extern uint32_t upload_index; // upload progress tracker
+extern Queue *commandQue;
+extern Queue *errors;
+extern Message *command;
+extern uint8_t shasum[];
+extern uint8_t packetLenArr[];
+extern uint16_t packetLen;
+extern uint8_t *data;
+
 /* Function Prototypes -----------------------------------------------*/
 uint8_t saveData(uint8_t *data, uint8_t dataLen); // Dummy Memory
 void payloadHeartbeatListen();

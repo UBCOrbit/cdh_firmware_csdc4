@@ -142,8 +142,9 @@ void receiveData(uint8_t *reply, int numBytes){
 /* Wait for a response -----------*/
 	while(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY) != HAL_OK){
 		HAL_Delay(RX_DELAY);
-		payloadHeartbeatListen(); // Check if still alive
 	}
+	printStringToConsole("Response Received\n");
+
 }
 
 /* Description: Send data-header over UART6 by extracting
