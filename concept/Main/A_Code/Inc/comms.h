@@ -25,5 +25,6 @@ void save_data(uint8_t *buf, uint8_t *data, uint8_t *length_command);
 void save_command(uint8_t * buf, uint8_t *data, uint8_t *len_command);
 uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_command, uint8_t *data);
 void printStringToConsole(char message[]);
+void generate_packet(uint8_t * send, uint8_t size);
 
 #endif

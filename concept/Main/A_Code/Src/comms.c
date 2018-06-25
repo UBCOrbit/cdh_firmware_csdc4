@@ -169,3 +169,19 @@ uint8_t parse_packet(uint8_t *buf, uint8_t *adr, uint8_t *flg, uint8_t *len_comm
 	}
 	return 1;
 }
+
+void generate_packet(uint8_t * send, uint8_t size){
+
+	printStringToConsole("\nBuilding Packet...\n");
+	uint8_t packet_size = size + 2;
+	uint8_t *sent_pointer; // pointer for transmission
+	*sent_pointer = 0b01100001; // first byte
+	*(sent_pointer + 1) = size;
+
+	for (uint8_t i = 2; i < packet_size; i++) {
+		*(sent_pointer + i) = send[i - 2];
+	}
+	printStringToConsole("\nSending Packet...\n");
+	Hal_Uart_Transmit(&huart1, sent_pointer, packet_size, 10);
+	printStringToConsole("\nPacket Sent\n");
+}
