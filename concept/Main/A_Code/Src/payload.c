@@ -7,6 +7,7 @@
 #include "payload.h"
 
 UART_HandleTypeDef huart6;
+UART_HandleTypeDef huart2;
 
 /* Operation Variables*/
 uint32_t upload_index = 0; // upload progress tracker
@@ -20,6 +21,7 @@ uint8_t *data;
 
 uint8_t memory[64];
 uint32_t memIndex = 0;
+void printString(char message[]);
 
 /* Description: Appends a fixed number of bytes to the global memory array.
  * Inputs: Pointer to the data to be appended, amount of data to be appended
@@ -99,6 +101,9 @@ void dequeue(Queue *que){
 	que->numMessages--;
 }
 
+void printString(char message[]) {
+	HAL_UART_Transmit(&huart2, (uint8_t*)message, strlen(message), 0x0FFF);
+}
 /* Description: Returns whether or not the queue is empty
  */
 int queueIsEmpty(Queue *que) {
@@ -143,8 +148,6 @@ void receiveData(uint8_t *reply, int numBytes){
 	while(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY) != HAL_OK){
 		HAL_Delay(RX_DELAY);
 	}
-	printStringToConsole("Response Received\n");
-
 }
 
 /* Description: Send data-header over UART6 by extracting

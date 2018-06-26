@@ -103,6 +103,7 @@ static void MX_TIM5_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+void sendPacketToComms(uint8_t adr, uint8_t flg, uint8_t *data, uint8_t packetLen);
 void seconds_to_timer_period(uint16_t seconds, int timer);
 void MX_TIM2_Change_Period(int period);
 void MX_TIM5_Change_Period(int period);
@@ -147,282 +148,253 @@ int main(void)
 	MX_TIM5_Init();
 
 	/* USER CODE BEGIN 2 */
-	commandQue = initQueue(commandQue);
-	errors = initQueue(errors);
-	uint8_t packetLenArr[2];
-	uint16_t packetLen = 0;
-	uint8_t *data;
-
-
-/*	uint8_t lost_connection = 0;
-	char received = 0;
+	//COMMS Related Variables
 	uint8_t *buf = malloc(PACKET_SIZE);
 	uint8_t adr = 0;
 	uint8_t flg = 0;
 	uint8_t len_command = 0;
-	uint8_t *data = malloc(PACKET_SIZE - 2);
+	uint8_t commandLength =0;
+	uint8_t *data = malloc(8);
+
+	//Payload Related Variables
+	commandQue = initQueue(commandQue);
+	errors = initQueue(errors);
+	uint8_t packetLenArr[2];
+	uint16_t packetLen = 0;
 
 	char *commandPayload;
 	uint8_t payloadReply = 1;
-	uint16_t time_until_picture;*/
+	uint16_t time_until_picture;
 
-	//Start from point where we turn on COMMS
-//	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, RESET);
+	printStringToConsole("CDH Start\n");
 
-	//Wait for heartbeat from COMMS
-//	while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8) != 1) {
-//		HAL_Delay(ONDELAY);
-//	}
-	printStringToConsole("STM_A Start\n");
-
-
-
-	//Wait for COMMS to make connection to ground
-	//Not yet in place to deal with missing connection from ground
-	//while(HAL_UART_Receive(&huart1, (uint8_t*)&received, 2, 0x0FFF) != HAL_OK);
-
-	//printStringToConsole(&received);
 	/* USER CODE END 2 */
 
 	/* Over Ground loop*/
-/*	while (1) {
+	/*for (int i = 0; i < 3; i++) {
+		clearArray(buf);
 		//Check receive packet
-		receive_packet(buf);
+		commandLength = receive_packet(buf, data);
 
-		printStringToConsole("Packet was received\n");
-		if(parse_packet(buf, &adr, &flg, &len_command, data)) {
-			printStringToConsole("Packet was parsed\n");
+		printStringToConsole("Uplink packet received\n");
+		if(parse_packet(buf, &adr, &flg, &len_command)) {
+			printStringToConsole("Uplink packet was parsed\n");
+
 			switch(adr) {
-			//CDH Command
-			case 0x00:
-				switch(len_command) {
-				case 0x00:
-					printStringToConsole("Lost connection with ground\n");
-					lost_connection = 1;
-					break;
-				}
+
+			case 0x00: //CDH Command
 				break;
 
-			//Payload Command
-			case 0x01:
+			case 0x01: //Payload Command
 				if(flg == 0) {
 					switch(len_command) {
 					case 0x00:
 						printStringToConsole("Take picture command received\n");
-						//time_until_picture = ((uint16_t)data[0] * 256) + (uint16_t)data[1];
+
+						time_until_picture = ((uint16_t)data[0] * 256) + (uint16_t)data[1]; //in seconds
 						//seconds_to_timer_period(time_until_picture, 5);
 
 						//Add take picture command to payload queue
-						enqueue(createMessage(TAKE_PHOTO, 8, (data)), payloadCommands);
+						enqueue(createMessage(TAKE_PHOTO, 16, (data)), commandQue);
 						break;
+
 					case 0x01:
 						printStringToConsole("Execute script command received\n");
-						commandPayload = "exec/identify_fire ";
-						commandPayload[19] = data[0] + '0';
-						enqueue(createMessage(EXECUTE_COMMAND, strlen(commandPayload), (uint8_t *)commandPayload), payloadCommands);
+
+						commandPayload = malloc(27);
+						strcpy(commandPayload, "exec/identify_fire ");
+						strcpy(commandPayload + 19, data);
+
+						printStringToConsole(commandPayload);
+						printStringToConsole("\n");
+						enqueue(createMessage(EXECUTE_COMMAND, strlen(commandPayload), (uint8_t *)commandPayload), commandQue);
+						free(commandPayload);
 						break;
+
 					case 0x02:
 						printStringToConsole("File download command received\n");
+
+						commandPayload = malloc(11);
+						strcpy(commandPayload, "output/");
+						strcpy(commandPayload + 7, data);
+
+						if(data[8] == 0)
+							strcpy(commandPayload + 15, ".txt");
+						else
+							strcpy(commandPayload + 15, ".jpg");
+
+						printStringToConsole(commandPayload);
+						printStringToConsole("\n");
+
+						enqueue(createMessage(START_DOWNLOAD, strlen(commandPayload), (uint8_t*)commandPayload), commandQue);
+						free(commandPayload);
 						break;
 					}
-				} else;
+				}
 				break;
 
-			//ADCS Command
-			case 0x02:
+			case 0x02: //ADCS Command
 				break;
 
-			//EPS Command
-			case 0x03:
+			case 0x03: //EPS Command
 				break;
 			}
 		}
-		break;
-
-		if(lost_connection == 1)
-			break;
 	}*/
+/*	commandPayload = malloc(16);
+	uint64_t time = 2000000;
+	uint8_t *tempTime = (uint8_t*) &time;
+	char photoID[] = "000fire0";
 
-	char *path = "output/fire0.txt";
-	enqueue(createMessage(START_DOWNLOAD, strlen(path), (uint8_t*)path), commandQue);
+	for(int i = 0;i<8;i++)
+		commandPayload[i] = tempTime[i];
+	strcpy(commandPayload + 8, photoID);
 
-	 while (1) {
-		  /* Check if command queue is empty */
-		  if(commandQue->numMessages > 0)
-			  command = peekQueue(commandQue);
-		  else{
-			  HAL_Delay(1000); // Empty command queue - exit loop
-			  break;
-		  }
+	enqueue(createMessage(TAKE_PHOTO, 16, (uint8_t*)commandPayload), commandQue);
+	free(commandPayload);
 
-	  /* Save message details */
-	  uint8_t comcode = command->code;
-	  uint16_t datalen = command->payloadLen;
+	commandPayload = malloc(27);
+	strcpy(commandPayload, "exec/identify_fire 000fire0");
+	enqueue(createMessage(EXECUTE_COMMAND, 27, (uint8_t *)commandPayload), commandQue);
+	free(commandPayload);*/
 
-	  /* Send Header -----------------*/
-	  sendmHeader(command);
-	  printStringToConsole("Sent command to payload\n");
 
-	  /* Send Data ----------------*/
-	  if(datalen > 0)
-		  sendData(command->payload, datalen);
 
-	  /* Command-Specific Response Handling --------------------*/
-	  // Receive reply -> Parse Reply -> Handle Errors -> Dequeue message
-	  uint8_t reply;
-	  switch(comcode){
-		  case START_DOWNLOAD:
-			  // To-do: Extract filename from filepath
+	commandPayload = malloc(19);
+	strcpy(commandPayload, "output/000fire0.txt");
+	enqueue(createMessage(START_DOWNLOAD, strlen(commandPayload), (uint8_t*)commandPayload), commandQue);
 
-			  // Receive and parse success/error
-			  receiveData(&reply, 1);
-			  if(!handleError(errors, command, &reply)){
-				  // If no error, receive 32 byte shasum
-			  }
-			  break;
+	printStringToConsole("Done enqueue\n");
 
-		  case START_UPLOAD:
-			  receiveData(&reply, 1);
-			  if(handleError(errors, command, &reply))
-				  break;
-			  // Refresh upload index to match start of the file
-			  upload_index = 0;
-			  break;
-
-		  case REQUEST_PACKET:
-			  receiveData(&reply, 1);
-			  if(reply == 7)
-				  printStringToConsole("Downloaded");
-			  else if(handleError(errors, command, &reply))
-				  break;
-			  else{
-				  // If no error, parse packet length
-				  receiveData(packetLenArr, 2);
-
-				  uint16_t packetLen;
-				 // memcpy(&packetLen, packetLenArr, 2);
-
-				  packetLen = packetLenArr[1];
-				  packetLen = packetLen | ((uint16_t)packetLenArr[0] << 8);
-				  data = malloc(packetLen);
-
-				  // Use packet length to receive incoming data
-				  receiveData(data, packetLen-5);
-
-				  // Save data
-				  saveData(data, packetLen); // To-do: Change saving function (currently a dummy)
-				  free(data);
-				  printStringToConsole("One Packet Downloaded\n");
-			  }
-			  break;
-
-		  case SEND_PACKET:
-			  receiveData(&reply, 1);
-			  if(handleError(errors, command, &reply))
-				  break;
-			  else // If no error, increment index of file being read (track progress of reading)
-				  upload_index += datalen;
-			  break;
-
-		  case CANCEL_UPLOAD:
-			  receiveData(&reply, 1);
-			  handleError(errors, command, &reply);
-			  break;
-
-		  case FINALIZE_UPLOAD:
-			  receiveData(&reply, 1);
-			  break;
-
-		  case TAKE_PHOTO:
-			  receiveData(&reply, 1);
-			  handleError(errors, command, &reply);
-			  break;
-
-		  case EXECUTE_COMMAND:
-			  receiveData(&reply, 1);
-			  handleError(errors, command, &reply);
-			  break;
-	  }
-	  dequeue(commandQue);
-	  printStringToConsole("Enqueue one packet\n");
-	  enqueue(createMessage(REQUEST_PACKET, 0, (uint8_t*)path), commandQue);
-	  HAL_Delay(COMMAND_DELAY);
-  	}
-
-	/*Wait for picture loop*/
-	/*while(1) {
-	//deal with next patch packets
-
-		if(payloadOn == 1) {
-			while(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) != 1)
-				HAL_Delay(ONDELAY);
+	//Payload command loop (while not above ground)
+	while (1) {
+		/* Check if command queue is empty */
+		if(commandQue->numMessages > 0)
+			command = peekQueue(commandQue);
+		else{
+			printStringToConsole("All payload commands complete\n");
+			HAL_Delay(1000); // Empty command queue - exit loop
 			break;
 		}
-	}*/
-	/*char *path = "output/fire0.txt";
-	uint8_t response[3];
-	uint8_t dataResp[20];
-	uint16_t packetLen;
-	uint8_t packetLenArr[2];
 
-	enqueue(createMessage(START_DOWNLOAD, strlen(path), (uint8_t*)path), payloadCommands);
-	sendmHeader(peekQueue(payloadCommands));
-	sendData((uint8_t*)path, strlen(path));
+		/* Save message details */
+		uint8_t comcode = command->code;
+		uint16_t datalen = command->payloadLen;
 
-	printStringToConsole("Sent command to payload\n");
-	receiveData(&payloadReply, 1);
-	receiveData(data, 32);
-
-	while(1) {
-		if(payloadReply == 0) {
-			dequeue(payloadCommands);
-
-			printStringToConsole("Enqueue one packet\n");
-			enqueue(createMessage(REQUEST_PACKET, 0, (uint8_t*)path), payloadCommands);
-
-			sendmHeader(peekQueue(payloadCommands));
-			receiveData(&payloadReply, 1);
-
-			receiveData(packetLenArr, 2);
-			packetLen = packetLenArr[1] << 8;
-			packetLen = packetLen & (packetLenArr[0]);
-
-			receiveData(dataResp,packetLen);
-			printStringToConsole("One Packet Downloaded\n");
-		}
-		else if(payloadReply == 7) {
-			printStringToConsole("Done Downloading\n");
-			break;
-		}
-		else {
-			handleError(errorPayload, peekQueue(payloadCommands), &payloadReply);
-			printStringToConsole("Error\n");
-		}
-	}
-*/
-
-
-	/*Payload picture & analyze*/
-/*	while(!queueIsEmpty(payloadCommands)) {
-		sendmHeader(peekQueue(payloadCommands));
-		sendData((uint8_t *)path, strlen(path));
+		/* Send Header -----------------*/
+		sendmHeader(command);
 		printStringToConsole("Sent command to payload\n");
-		receiveData(&payloadReply, 1);
 
-		if(payloadReply == 0) {
-			dequeue(payloadCommands);
-			enqueue(createMessage(START_DOWNLOAD, 0, (uint8_t*)path), payloadCommands);
-			printStringToConsole("One Packet Downloaded\n");
+		/* Send Data ----------------*/
+		if(datalen > 0) {
+			sendData(command->payload, datalen);
 		}
-		else {
-			handleError(errorPayload, peekQueue(payloadCommands), &payloadReply);
-			printStringToConsole("Fail taking photo\n");
+
+		/* Command-Specific Response Handling --------------------*/
+		// Receive reply -> Parse Reply -> Handle Errors -> Dequeue message
+		uint8_t reply;
+		switch(comcode){
+			case START_DOWNLOAD:
+				// Receive and parse success/error
+				receiveData(&reply, 1);
+				if(handleError(errors, command, &reply))
+					break;
+
+				printStringToConsole("Successfully started download\n");
+
+				enqueue(createMessage(REQUEST_PACKET, 0, (uint8_t*)commandPayload), commandQue);
+				printStringToConsole("Enqueue first packet\n");
+				break;
+
+			case REQUEST_PACKET:
+				receiveData(&reply, 1);
+
+				if(reply == 7) {
+					printStringToConsole("Download complete\n");
+					break;
+				}
+				else if(handleError(errors, command, &reply)) {
+					printStringToConsole("Here\n");
+					break;
+				}
+
+				// If no error, parse packet length
+				receiveData(packetLenArr, 2);
+
+				packetLen = packetLenArr[1];
+				packetLen = packetLen | ((uint16_t)packetLenArr[0] << 8);
+				realloc(data,packetLen);
+
+				// Use packet length to receive incoming data
+				receiveData(data, packetLen);
+
+				// Save data
+				//sendPacketToComms(0x01, 0x02, data, packetLen);
+				printStringToConsole("One packet downloaded\n");
+
+				enqueue(createMessage(REQUEST_PACKET, 0, (uint8_t*)commandPayload), commandQue);
+				printStringToConsole("Enqueue next packet\n");
+				break;
+
+			case START_UPLOAD:
+				receiveData(&reply, 1);
+				if(handleError(errors, command, &reply))
+				  break;
+				// Refresh upload index to match start of the file
+				upload_index = 0;
+				printStringToConsole("Successfully started upload\n");
+				break;
+
+			case SEND_PACKET:
+			    receiveData(&reply, 1);
+			    if(handleError(errors, command, &reply))
+				    break;
+			    else // If no error, increment index of file being read (track progress of reading)
+				    upload_index += datalen;
+			    break;
+
+			case CANCEL_UPLOAD:
+			    receiveData(&reply, 1);
+			  	handleError(errors, command, &reply);
+			  	break;
+
+			case FINALIZE_UPLOAD:
+				receiveData(&reply, 1);
+				break;
+
+			case TAKE_PHOTO:
+				receiveData(&reply, 1);
+				handleError(errors, command, &reply);
+				break;
+
+			case EXECUTE_COMMAND:
+				receiveData(&reply, 1);
+				handleError(errors, command, &reply);
+				break;
 		}
-	}*/
+		dequeue(commandQue);
+		HAL_Delay(COMMAND_DELAY);
+	}
+
 
 
 	/* USER CODE END 3 */
 }
+
+void sendPacketToComms(uint8_t adr, uint8_t flg, uint8_t *data, uint8_t packetLen) {
+	uint8_t header = 0b01100000 | (adr << 1) | flg;
+	uint8_t packetToSend[PACKET_SIZE];
+	packetToSend[0] = header;
+	packetToSend[1] = packetLen;
+
+	for(int i = 0; i < packetLen; i++) {
+		packetToSend[i+2] = data[i];
+	}
+
+	HAL_UART_Transmit(&huart1, packetToSend, packetLen+2, 0x0FFF);
+	printStringToConsole("Downlink packet sent\n");
+}
+
 
 /** System Clock Configuration
 */
