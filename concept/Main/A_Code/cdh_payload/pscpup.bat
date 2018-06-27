@@ -1,0 +1,1 @@
+pscp -pw payload C:\Users\Bruno\Desktop\cdhpayload\CDH\concept\Main\A_Code\cdh_payload\.pioenvs\nucleo_f401re\firmware.bin orbit@172.22.232.43:cdh/bin_files/
