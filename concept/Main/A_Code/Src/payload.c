@@ -133,10 +133,7 @@ Message *createMessage(uint8_t command_code, uint16_t data_len, uint8_t *data){
  * Output: Pointer to newly created message.
  */
 void sendData(uint8_t *data, int dataLen){
-	  while(HAL_UART_Transmit(&huart6, data, dataLen, TX_DELAY) != HAL_OK){
-		  HAL_Delay(TX_DELAY); // Wait 10ms before retry
-		  payloadHeartbeatListen(); // Check if still alive
-	  }
+	  HAL_UART_Transmit(&huart6, data, dataLen, TX_DELAY);
 }
 
 /* Description: Receive data over UART6 and store it in the passed container.
@@ -145,9 +142,7 @@ void sendData(uint8_t *data, int dataLen){
  */
 void receiveData(uint8_t *reply, int numBytes){
 /* Wait for a response -----------*/
-	while(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY) != HAL_OK){
-		HAL_Delay(RX_DELAY);
-	}
+	while(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY) != HAL_OK);
 }
 
 /* Description: Send data-header over UART6 by extracting
