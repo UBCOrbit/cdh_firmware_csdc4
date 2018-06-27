@@ -139,7 +139,7 @@ void sendData(uint8_t *data, int dataLen){
 		  HAL_Delay(TX_DELAY); // Wait 10ms before retry
 		//   payloadHeartbeatListen(); // Check if still alive
 	  }
-	  printString("data sent\n");
+	//   printString("data sent\n");
 }
 
 /* Description: Receive data over UART6 and store it in the passed container.
@@ -149,7 +149,10 @@ void sendData(uint8_t *data, int dataLen){
 void receiveData(uint8_t *reply, int numBytes){
 /* Wait for a response -----------*/
 	while(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY) != HAL_OK){
-		HAL_Delay(RX_DELAY);
+		// parray(HAL_UART_Receive(&huart6, reply, numBytes, RX_DELAY),1);
+		// parray(HAL_UART_GetState(&huart6),1);
+		// parray(HAL_UART_GetError(&huart6),1);
+		// HAL_Delay(RX_DELAY);
 	}
 }
 

@@ -168,7 +168,6 @@ int main(void)
 
 	HAL_UART_Abort(&huart2);
 	HAL_UART_Abort(&huart6);
-	HAL_UART_Transmit(&huart2, "hoi", sizeof("hoi"), 0x0FFF);
 	printStringToConsole("CDH Start\n");
 
 	/* USER CODE END 2 */
@@ -286,8 +285,9 @@ int main(void)
 
 		/* Send Header -----------------*/
 		printStringToConsole("boi\n");
+		HAL_Delay(1000);
 		sendmHeader(command);
-		printStringToConsole("Sent command to payload\n");
+		// printStringToConsole("Sent command to payload\n");
 
 		/* Send Data ----------------*/
 		if(datalen > 0) {
@@ -296,11 +296,15 @@ int main(void)
 
 		/* Command-Specific Response Handling --------------------*/
 		// Receive reply -> Parse Reply -> Handle Errors -> Dequeue message
-		uint8_t reply;
+		uint8_t reply=137;
+		uint8_t hbuff[2];
+		uint8_t rbuff[256];
 		switch(comcode){
 			case START_DOWNLOAD:
 				// Receive and parse success/error
 				receiveData(&reply, 1);
+				printStringToConsole("reply:\n");
+				parray(&reply,1);
 				if(handleError(errors, command, &reply))
 					break;
 
@@ -312,25 +316,34 @@ int main(void)
 
 			case REQUEST_PACKET:
 				receiveData(&reply, 1);
-
+				
 				if(reply == 7) {
 					printStringToConsole("Download complete\n");
 					break;
 				}
 				else if(handleError(errors, command, &reply)) {
+					parray(&reply,1);
 					printStringToConsole("Here\n");
 					break;
 				}
+				// printStringToConsole("reply:\n");
+				// parray(&reply,1);
+
 
 				// If no error, parse packet length
-				receiveData(packetLenArr, 2);
+				// receiveData(packetLenArr, 2);
 
-				packetLen = packetLenArr[1];
-				packetLen = packetLen | ((uint16_t)packetLenArr[0] << 8);
-				realloc(data,packetLen);
+				// packetLen = packetLenArr[1];
+				// packetLen = packetLen | ((uint16_t)packetLenArr[0] << 8);
+				// realloc(data,packetLen);
 
 				// Use packet length to receive incoming data
-				receiveData(data, packetLen);
+				receiveData(hbuff, sizeof(hbuff));
+				receiveData(rbuff,hbuff[1]);
+				
+				// reply=hbuff[0];
+
+				
 
 				// Save data
 				//sendPacketToComms(0x01, 0x02, data, packetLen);
