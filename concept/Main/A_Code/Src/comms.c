@@ -5,8 +5,8 @@ UART_HandleTypeDef huart2;
 
 // Description: This function writes null bytes to the buffer array passed to it
 // Input: pointer to buffer that needs to be cleared
-void clear_array(uint8_t *buf) {
-	for (int i = 0; i < PACKET_SIZE; i++) {
+void clear_array(uint8_t *buf, int size) {
+	for (int i = 0; i < size; i++) {
 		buf[i] = '\0';
 	}
 }

@@ -13,7 +13,7 @@
 #define BYTE_SIZE 8 // number of bits in a byte
 
 /*FUNCTION PROTOTYPES-----------------------------------------------------------------------------*/
-void clearArray(uint8_t *buf);
+void clearArray(uint8_t *buf,int size);
 void print_buffer(uint8_t *buf, int size);
 uint8_t receive_packet(uint8_t *header, uint8_t *data);
 //uint8_t mram_packet(uint8_t *pointer, uint8_t *mram_pointer);

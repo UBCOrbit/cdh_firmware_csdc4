@@ -77,5 +77,6 @@ void sendData(uint8_t *data, int dataLen);
 void receiveData(uint8_t *reply, int numBytes);
 void sendmHeader(Message *msg);
 uint8_t handleError(Queue *errQue, Message *command, uint8_t *reply);
+void parray(uint8_t *arr, uint8_t size);
 
 #endif

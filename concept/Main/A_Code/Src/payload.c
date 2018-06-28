@@ -121,7 +121,11 @@ Message *createMessage(uint8_t command_code, uint16_t data_len, uint8_t *data){
 
 	newMessage->code = command_code;
 	newMessage->payloadLen = data_len;
-	newMessage->payload = data;
+	newMessage->payload = malloc(data_len);
+
+	for(int i = 0; i < data_len; i++) {
+		newMessage->payload[i] = data[i];
+	}
 	newMessage->err = 0;
 	newMessage->next = NULL;
 
@@ -133,7 +137,17 @@ Message *createMessage(uint8_t command_code, uint16_t data_len, uint8_t *data){
  * Output: Pointer to newly created message.
  */
 void sendData(uint8_t *data, int dataLen){
-	  HAL_UART_Transmit(&huart6, data, dataLen, TX_DELAY);
+	parray(data, dataLen);
+	HAL_UART_Transmit(&huart6, data, dataLen, TX_DELAY);
+}
+
+void parray(uint8_t *arr, uint8_t size){
+	char str[5];
+	for (int i=0; i<size; i++){
+		sprintf(str,"%d\n", arr[i]);
+		printString(str);
+	}
+
 }
 
 /* Description: Receive data over UART6 and store it in the passed container.

@@ -154,13 +154,14 @@ int main(void)
 	uint8_t flg = 0;
 	uint8_t len_command = 0;
 	uint8_t commandLength = 0;
-	uint8_t *data = malloc(8);
 
 	//Payload Related Variables
 	commandQue = initQueue(commandQue);
 	errors = initQueue(errors);
 
 	uint16_t time_until_picture;
+	uint8_t data[16];
+	char commandPayload[30];
 
 	printStringToConsole("CDH Start\n\n");
 
@@ -168,10 +169,12 @@ int main(void)
 
 	/* Over Ground loop*/
 	for (int i = 0; i < 3; i++) {
-		char commandPayload[30];
-		clearArray(buf);
+		clearArray(buf, 256);
+		memset((char*)data,'\0',sizeof(data));
+
 		//Check receive packet
 		commandLength = receive_packet(buf, data);
+
 
 		printStringToConsole("Uplink packet received\n");
 		if(parse_packet(buf, &adr, &flg, &len_command)) {
@@ -191,6 +194,8 @@ int main(void)
 						//time_until_picture = ((uint16_t)data[0] * 256) + (uint16_t)data[1]; //in seconds
 						//seconds_to_timer_period(time_until_picture, 5);
 
+
+
 						//Add take picture command to payload queue
 						enqueue(createMessage(TAKE_PHOTO, 16, (data)), commandQue);
 						break;
@@ -203,6 +208,7 @@ int main(void)
 
 						printStringToConsole(commandPayload);
 						printStringToConsole("\n");
+
 						enqueue(createMessage(EXECUTE_COMMAND, strlen(commandPayload), (uint8_t *)commandPayload), commandQue);
 						break;
 
@@ -234,8 +240,7 @@ int main(void)
 			}
 		}
 	}
-
-/*	commandPayload = malloc(16);
+/*	char commandPayload[30];
 	uint64_t photoTime = 500000;
 	uint8_t *tempTime = (uint8_t*) &photoTime;
 	char photoID[] = "000fire0";
@@ -246,18 +251,15 @@ int main(void)
 
 	enqueue(createMessage(TAKE_PHOTO, 16, (uint8_t*)commandPayload), commandQue);
 */
-	/*commandPayload = malloc(27);
-	strcpy(commandPayload, "exec/identify_fire 000fire0");
+/*	strcpy(commandPayload, "exec/identify_fire 000fire0");
 	enqueue(createMessage(EXECUTE_COMMAND, 27, (uint8_t *)commandPayload), commandQue);
-	free(commandPayload);*/
+	free(commandPayload);
 
-
-
-	/*commandPayload = malloc(19);
-	strcpy(commandPayload, "output/000fire0.txt");
-	enqueue(createMessage(START_DOWNLOAD, strlen(commandPayload), (uint8_t*)commandPayload), commandQue);
 */
 
+	/*strcpy(commandPayload, "output/000fire0.jpg");
+	enqueue(createMessage(START_DOWNLOAD, strlen(commandPayload), (uint8_t*)commandPayload), commandQue);
+*/
 	//Payload command loop (while not above ground)
 	while (1) {
 		/* Check if command queue is empty */
@@ -275,19 +277,21 @@ int main(void)
 
 		/* Send Header -----------------*/
 		sendmHeader(command);
+		printStringToConsole("Sent command to payload\n");
 
 		/* Send Data ----------------*/
 		if(datalen > 0) {
 			sendData(command->payload, datalen);
+			printStringToConsole("Sent data to payload\n");
 		}
-		printStringToConsole("Sent command to payload\n");
 
 		/* Command-Specific Response Handling --------------------*/
 		// Receive reply -> Parse Reply -> Handle Errors -> Dequeue message
-		uint8_t reply = 1;
+		uint8_t reply;
 		uint8_t header[2];
 		uint8_t packetData[256];
 		switch(comcode){
+			reply = 2;
 			case START_DOWNLOAD:
 				// Receive and parse success/error
 				while(HAL_UART_Receive(&huart6, &reply, 1, RX_DELAY) != HAL_OK);
@@ -321,6 +325,9 @@ int main(void)
 					break;
 				} else {
 					handleError(errors, command, &reply);
+					char temp[5];
+					itoa(reply, temp,10);
+					printStringToConsole(temp);
 				}
 				break;
 
@@ -386,6 +393,7 @@ void sendPacketToComms(uint8_t adr, uint8_t flg, uint8_t *data, uint8_t packetLe
 	HAL_UART_Transmit(&huart1, packetToSend, packetLen+2, 0x0FFF);
 	printStringToConsole("Downlink packet sent\n");
 }
+
 
 
 /** System Clock Configuration
