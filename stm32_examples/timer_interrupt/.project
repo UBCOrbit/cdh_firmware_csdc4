@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>4 Timer_interrupt_attempt1</name>
-	<comment />
+	<name>timer_interrupt</name>
+	<comment></comment>
 	<projects>
 	</projects>
 	<buildSpec>
@@ -24,7 +24,4 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 		<nature>fr.ac6.mcu.ide.core.MCUProjectNature</nature>
 	</natures>
-	<linkedResources>
-		
-	</linkedResources>
 </projectDescription>
