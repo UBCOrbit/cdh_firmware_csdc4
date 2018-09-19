@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>cdh_firmware</name>
+	<name>mcu_c</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -24,4 +24,11 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 		<nature>fr.ac6.mcu.ide.core.MCUProjectNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>libraries</name>
+			<type>2</type>
+			<location>C:/Users/Andrada Zoltan/Desktop/UBCOrbit/CDH/main_v0.3/libraries/src</location>
+		</link>
+	</linkedResources>
 </projectDescription>
