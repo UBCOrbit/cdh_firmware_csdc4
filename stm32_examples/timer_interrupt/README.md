@@ -1,2 +1,2 @@
 # Timer Interrupt
-The purpose of this exploration was to determine how to use the STM32F4's timer interrupts and configure the time until interrupt to be whichever value we set.
+The purpose of this example is to show how to use timer interrupts and configure the time before an interrupt is triggered.

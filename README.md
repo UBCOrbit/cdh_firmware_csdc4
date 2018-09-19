@@ -1,15 +1,13 @@
 # CDH
+Repository for UBC Orbit's Command and Data Handling firmware development.
 
-Repository for CDH software files. 
+### CSDC-4
+Contains code specific to CSDC-4 events.
 
-## Release
+### Main V0.3
 
-Software to be used on the satellite. 
+Main code, corresponding to Trillium v3. Was in development for CSDC-4, and is now no longer in use as the team redesigns the firmware for CSDC-5.
 
-## Concept 
+### STM32 Examples
 
-Software to test out concepts for running the satellite.
-
-## Archives
-
-Contains software that we are not planning to use for the satellite.
+Contains examples of working with varying STM32F4 peripherals. Specific to the STM32F401RE model.
