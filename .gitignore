@@ -4,4 +4,4 @@
 */Release/
 */.settings/
 *.xml
-/*.gitignore
+*.gitignore
