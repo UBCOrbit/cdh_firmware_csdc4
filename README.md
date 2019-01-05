@@ -1,4 +1,4 @@
-# CDH
+# CSDC4 CDH Firmware
 Repository for UBC Orbit's Command and Data Handling firmware development.
 
 ### CSDC-4
